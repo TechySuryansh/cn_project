@@ -1,0 +1,24 @@
+# Secrets - never commit
+.env
+.env.*
+!.env.example
+*.key
+*.p12
+*.pem
+*.token
+secrets/
+.credentials/
+.cloudflare/
+credentials*.json
+
+# Runtime
+logs/*
+!logs/.gitkeep
+config/generated/
+*.pcap
+*.pcapng
+.DS_Store
+__pycache__/
+
+# Timestamped evidence bundles are large/noisy; commit selectively with git add -f
+evidence/20*/

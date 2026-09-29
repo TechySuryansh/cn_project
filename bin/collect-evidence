@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Collects SAFE evidence into evidence/<timestamp>/ (no keys, no tokens).
+# Packet captures are separate and bounded: scripts/capture-packets.sh
+set -uo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$REPO/scripts/common.sh"; . "$REPO/scripts/checks.sh"; load_config; . "$REPO/scripts/roles.sh"
+[ -n "${EDGE_IP:-}" ] || die "Run setup first."
+D="$REPO/evidence/$(date +%Y-%m-%d-%H%M%S)"; mkdir -p "$D"
+detect_trust
+iface="$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')"
+resolve=(); [ "${TEST_USE_SYSTEM_RESOLVER:-1}" = 0 ] && resolve=(--resolve "${APP_DOMAIN}:${EDGE_PORT}:${EDGE_IP}")
+cacert=(); [ "$CN_TRUST_MODE" = cacert ] && cacert=(--cacert "$CN_CA_CERT_REPO")
+
+{ date; echo "mode=$NETWORK_MODE role=${ROLE:-?} team=$TEAM"; "$REPO/scripts/macos-network-info.sh"; echo; ifconfig "$iface"; echo; route -n get default; } > "$D/network-info.txt" 2>&1
+{ scutil --dns | grep -B2 -A6 "$TEST_ZONE" || echo "no scoped resolver for $TEST_ZONE"; echo; cat "/etc/resolver/$TEST_ZONE" 2>&1; } > "$D/resolver.txt"
+{ for h in "$APP_DOMAIN" "$API_DOMAIN"; do "$DIG" -p "$DNS_PORT" "@$DNS_IP" "$h"; echo; nslookup -port="$DNS_PORT" "$h" "$DNS_IP"; echo; done; } > "$D/dns.txt" 2>&1
+"$CURL" -v "${resolve[@]}" "${cacert[@]}" --max-time 10 "$APP_URL/api/status" > "$D/curl-verbose.txt" 2>&1
+"$CURL" -sS -I "${resolve[@]}" "${cacert[@]}" --max-time 10 "$APP_URL/api/cacheable" > "$D/headers.txt" 2>&1
+{ printf '' | openssl s_client -connect "$EDGE_IP:$EDGE_PORT" -servername "$APP_DOMAIN" -CAfile "$CN_CA_CERT_REPO" -showcerts 2>&1 | sed -n '1,200p'
+  echo; openssl x509 -in "$CN_CA_CERT_REPO" -noout -subject -issuer -dates 2>&1; } > "$D/tls.txt"
+{ echo "Sequence of X-Backend values: $(sample_backends 10)"; } > "$D/load-balancing.txt"
+{ cache_headers; echo "conditional request status: $(cache_status_with_etag)"; } > "$D/cache.txt" 2>&1
+[ "$ROLE" = vaibhav ] && edge_test_config > "$D/nginx-t.txt" 2>&1 && cp "$NGINX_CONF" "$D/nginx.conf.generated"
+[ "$ROLE" = mitul ] && [ -f "$DNSMASQ_CONF" ] && cp "$DNSMASQ_CONF" "$D/dnsmasq.conf.generated"
+"$REPO/bin/status" > "$D/service-status.txt" 2>&1
+"$REPO/bin/doctor" > "$D/doctor.txt" 2>&1
+{ lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null | grep -E ":(${EDGE_PORT}|${BACKEND_A_PORT}|${BACKEND_B_PORT}) "; lsof -nP -iUDP:"$DNS_PORT" 2>/dev/null; } > "$D/listening-ports.txt"
+[ -f "$CN_LOG_DIR/dnsmasq.log" ] && tail -n 100 "$CN_LOG_DIR/dnsmasq.log" > "$D/dnsmasq-log-tail.txt"
+[ -f "$CN_LOG_DIR/nginx-access.log" ] && tail -n 100 "$CN_LOG_DIR/nginx-access.log" > "$D/nginx-access-tail.txt"
+[ "$NETWORK_MODE" = tunnel ] && { have_cmd warp-cli && warp-cli status; tail -n 30 "$CN_LOG_DIR/cloudflared.log" 2>/dev/null | sed -E 's/(eyJ[A-Za-z0-9_.-]{20,})/[REDACTED]/g'; } > "$D/cloudflare-status.txt" 2>&1
+# Safety net: never leave secrets behind
+if grep -rlE 'PRIVATE KEY|TUNNEL_TOKEN|eyJ[A-Za-z0-9_-]{30,}' "$D" >/dev/null 2>&1; then
+  grep -rlE 'PRIVATE KEY|TUNNEL_TOKEN|eyJ[A-Za-z0-9_-]{30,}' "$D" | xargs rm -f; warn "Removed files that looked like they contained secrets."
+fi
+ok "Evidence saved to $D"; ls "$D"
+echo "Commit selectively:  git add -f ${D#$REPO/}"
+echo "Packet capture (bounded):  scripts/capture-packets.sh 60"

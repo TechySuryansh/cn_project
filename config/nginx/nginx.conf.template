@@ -1,0 +1,74 @@
+# Generated from config/nginx/nginx.conf.template - do not edit the output.
+# Mac 2 (Vaibhav): TLS-terminating reverse proxy + round-robin load balancer.
+# Network mode: @@NETWORK_MODE@@
+
+worker_processes 1;
+pid @@NGINX_PID@@;
+error_log @@LOG_DIR@@/nginx-error.log info;
+
+events { worker_connections 256; }
+
+http {
+    default_type application/octet-stream;
+
+    # keep all temp files inside our own run directory (no root needed)
+    client_body_temp_path @@NGINX_PREFIX@@/tmp/client_body;
+    proxy_temp_path       @@NGINX_PREFIX@@/tmp/proxy;
+    fastcgi_temp_path     @@NGINX_PREFIX@@/tmp/fastcgi;
+    uwsgi_temp_path       @@NGINX_PREFIX@@/tmp/uwsgi;
+    scgi_temp_path        @@NGINX_PREFIX@@/tmp/scgi;
+
+    log_format lb '$remote_addr [$time_local] "$request" $status '
+                  'upstream=$upstream_addr backend=$upstream_http_x_backend rt=$request_time';
+    access_log @@LOG_DIR@@/nginx-access.log lb;
+
+    # --- Upstream group: default policy is round robin ---------------------
+    upstream project_backends {
+        server @@BACKEND_A_HOST@@:@@BACKEND_A_PORT@@ max_fails=@@UPSTREAM_MAX_FAILS@@ fail_timeout=@@UPSTREAM_FAIL_TIMEOUT@@;
+        server @@BACKEND_B_HOST@@:@@BACKEND_B_PORT@@ max_fails=@@UPSTREAM_MAX_FAILS@@ fail_timeout=@@UPSTREAM_FAIL_TIMEOUT@@;
+    }
+    # Single-member groups, used ONLY by the health probes below.
+    upstream backend_a_only { server @@BACKEND_A_HOST@@:@@BACKEND_A_PORT@@; }
+    upstream backend_b_only { server @@BACKEND_B_HOST@@:@@BACKEND_B_PORT@@; }
+
+    server {
+        listen @@EDGE_PORT@@ ssl;
+        http2 on;
+        server_name @@APP_DOMAIN@@ @@API_DOMAIN@@;
+
+        ssl_certificate     @@TLS_CERT@@;
+        ssl_certificate_key @@TLS_KEY@@;
+        ssl_protocols       TLSv1.2 TLSv1.3;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Passive failover: if a backend errors/times out, retry on the other.
+        proxy_connect_timeout @@UPSTREAM_CONNECT_TIMEOUT@@;
+        proxy_read_timeout    10s;
+        proxy_next_upstream   error timeout http_502 http_503 http_504;
+        proxy_next_upstream_tries 2;
+
+        error_page 502 503 504 = @upstream_down;
+        location @upstream_down {
+            default_type text/plain;
+            add_header X-Edge "nginx" always;
+            return 502 "502 Bad Gateway: the edge is up but no backend answered.\n";
+        }
+
+        # Diagnostic probes: reach ONE specific backend through the edge so a
+        # remote client (which cannot reach the backends directly) can still
+        # prove each backend individually. Not part of the normal user path.
+        location = /__probe/a { proxy_pass http://backend_a_only/health; }
+        location = /__probe/b { proxy_pass http://backend_b_only/health; }
+        location = /__edge/health { default_type text/plain; return 200 "edge ok\n"; }
+
+        location / {
+            proxy_pass http://project_backends;
+        }
+    }
+}

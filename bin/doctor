@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Layer-by-layer diagnosis. Follows the course method:
+#   name resolution -> TCP -> TLS -> edge -> backends -> application.
+set -uo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$REPO/scripts/common.sh"; . "$REPO/scripts/checks.sh"; load_config; . "$REPO/scripts/roles.sh"
+[ -n "${EDGE_IP:-}" ] || die "Run your Mac's setup first."
+detect_trust
+banner "CN NETWORK DOCTOR   (mode: $NETWORK_MODE)"
+
+FIRST=""; CAUSE=""; declare -a REPORT=()
+layer() {  # layer NAME check-fn "concept" "cause-if-fail" "investigate cmds"
+  local name="$1" fn="$2" concept="$3" cause="$4" cmds="$5" res
+  if "$fn" >/dev/null 2>&1; then res="${C_GRN}PASS${C_RST}"
+  else
+    res="${C_RED}FAIL${C_RST}"
+    if [ -z "$FIRST" ]; then FIRST="$name"; CAUSE="$cause"; fi
+    REPORT+=("$name|$concept|$cmds")
+  fi
+  printf '  %-22s %s\n' "$name" "$res"
+}
+
+l1() { [ -n "$(local_ip)" ] && ping -c1 -W 1000 "$EDGE_IP" >/dev/null 2>&1; }
+l2() { chk_dns_server && chk_dns_client; }
+l3() { chk_edge_tcp; }
+l4() { chk_tls; }
+l5() { chk_edge_http; }
+l6() { chk_probe_a; }
+l7() { chk_probe_b; }
+l8() { [ "$NETWORK_MODE" != tunnel ] && return 0; if have_cmd warp-cli; then warp-cli status 2>/dev/null | grep -qi connected; else return 0; fi; }
+l9() { chk_app; }
+
+layer "LOCAL NETWORK"   l1 "IP connectivity is independent of DNS; ping tests the network layer only." \
+  "This Mac is not on the LAN, or the edge Mac ($EDGE_IP) is off / on another network / has wrong IP recorded." \
+  "scripts/macos-network-info.sh ; ping $EDGE_IP ; grep EDGE_IP ~/.config/cn-phase1/project.env"
+layer "DNS"             l2 "DNS is only a directory (name->IP); a wrong server or record breaks lookup, not connectivity." \
+  "dnsmasq down, wrong resolver on this client, or the record points at the wrong IP (answer: '$(resolve_via_dig)' / client: '$(client_resolved_ip)', expected $EDGE_IP)." \
+  "dig -p $DNS_PORT @$DNS_IP $APP_DOMAIN ; cat /etc/resolver/$TEST_ZONE ; tail $CN_LOG_DIR/dnsmasq.log"
+layer "TCP EDGE"        l3 "TCP connects to IP:port; a reachable host can still refuse a port with nothing listening." \
+  "nginx is not listening on $EDGE_IP:$EDGE_PORT, a firewall blocks it, or the wrong port is configured." \
+  "nc -vz $EDGE_IP $EDGE_PORT ; (on Vaibhav) lsof -iTCP:$EDGE_PORT -sTCP:LISTEN"
+layer "TLS"             l4 "TLS authenticates the server via a CA-signed certificate whose SAN must match the URL name." \
+  "Certificate not trusted (CA not installed), name mismatch (SAN), expired, or nginx TLS config broken." \
+  "scripts/install-ca.sh ; openssl s_client -connect $EDGE_IP:$EDGE_PORT -servername $APP_DOMAIN -CAfile pki/ca.crt </dev/null"
+layer "NGINX / EDGE"    l5 "The edge answers HTTP itself (/__edge/health) without needing any backend." \
+  "nginx is up at TCP level but its HTTP handling is failing (bad config, wrong vhost/server_name)." \
+  "(on Vaibhav) ./bin/status ; tail $CN_LOG_DIR/nginx-error.log"
+layer "BACKEND A"       l6 "The edge proxies to Backend A over TCP; failure here isolates the backend, not DNS/TLS." \
+  "Backend A process or Hardik's Cloudflare connector / LAN reachability is unavailable." \
+  "(on Hardik) ./macs/mac3-hardik/status.sh ; (on Vaibhav) nc -vz $BACKEND_A_HOST $BACKEND_A_PORT"
+layer "BACKEND B"       l7 "The edge proxies to Backend B over TCP; failure here isolates the backend, not DNS/TLS." \
+  "Backend B process or Akshat's Cloudflare connector / LAN reachability is unavailable." \
+  "(on Akshat) ./macs/mac4-akshat/status.sh ; (on Vaibhav) nc -vz $BACKEND_B_HOST $BACKEND_B_PORT"
+layer "CLOUDFLARE (WARP)" l8 "In tunnel mode the edge reaches $TUNNEL_A_IP/$TUNNEL_B_IP through an overlay, not the LAN." \
+  "Cloudflare WARP not connected on the edge, or split-tunnel excludes 10.250.0.0/24." \
+  "warp-cli status ; docs/CLOUDFLARE_MODE.md"
+layer "HTTP / APPLICATION" l9 "Application layer: a 2xx JSON answer proves every layer beneath it worked." \
+  "The full path is not delivering a successful response (see the first failing layer above)." \
+  "curl -v $APP_URL/api/status"
+
+echo
+if [ -z "$FIRST" ]; then
+  echo "${C_GRN}All layers healthy.${C_RST}  Load balancing: $(sample_backends 6)"
+  exit 0
+fi
+banner "FIRST FAILING LAYER: $FIRST"
+echo "LIKELY CAUSE:"; echo "  $CAUSE"
+a_ok=0; b_ok=0; chk_probe_a && a_ok=1; chk_probe_b && b_ok=1
+if chk_edge_http && [ $a_ok = 0 ] && [ $b_ok = 0 ]; then
+  echo "  DNS, TCP and TLS work and nginx answers, but BOTH backends fail -> clients see 502 Bad Gateway."
+elif chk_edge_http && [ $((a_ok+b_ok)) = 1 ]; then
+  echo "  Service still works through the surviving backend (failover): $(sample_backends 4)"
+fi
+echo
+for r in "${REPORT[@]}"; do
+  IFS='|' read -r n c cmd <<<"$r"
+  echo "$n"; echo "  Concept: $c"; echo "  Investigate: $cmd"
+done
+exit 1

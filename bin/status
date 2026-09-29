@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Whole-system status from THIS Mac's point of view; real requests, not pgrep.
+set -uo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$REPO/scripts/common.sh"; . "$REPO/scripts/checks.sh"; load_config; . "$REPO/scripts/roles.sh"
+if [ -n "${ROLE:-}" ]; then "$REPO/scripts/role.sh" "$ROLE" status; echo; fi
+[ -n "${EDGE_IP:-}" ] || { echo "EDGE_IP unknown - run setup first"; exit 1; }
+detect_trust
+banner "SYSTEM VIEW (mode: $NETWORK_MODE)"
+s() { if "$@" >/dev/null 2>&1; then printf '%sOK%s' "$C_GRN" "$C_RST"; else printf '%sFAIL%s' "$C_RED" "$C_RST"; fi; }
+row "MAC1 DNS (server answers)"  "$(s chk_dns_server)"
+row "DNS resolution (client)"     "$(s chk_dns_client)"
+row "MAC2 edge TCP :$EDGE_PORT"   "$(s chk_edge_tcp)"
+row "TLS (no -k)"                 "$(s chk_tls)$([ "$CN_TRUST_MODE" = cacert ] && echo ' (via --cacert; system CA not installed)')"
+row "MAC2 nginx"                  "$(s chk_edge_http)"
+row "Backend A (via edge)"        "$(s chk_probe_a)"
+row "Backend B (via edge)"        "$(s chk_probe_b)"
+if [ "$NETWORK_MODE" = tunnel ]; then
+  row "Cloudflare Tunnel A"       "$(s chk_probe_a)  (inferred: edge reaches $TUNNEL_A_IP)"
+  row "Cloudflare Tunnel B"       "$(s chk_probe_b)  (inferred: edge reaches $TUNNEL_B_IP)"
+fi
+row "Application (/api/status)"   "$(s chk_app)"
+row "Load balancing"              "$(sample_backends 6)"

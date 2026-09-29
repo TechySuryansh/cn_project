@@ -1,0 +1,25 @@
+# Generated from config/dns/dnsmasq.conf.template - do not edit the output.
+# Mac 1 (Mitul) private DNS for the .test zone (Task B).
+
+port=@@DNS_PORT@@
+listen-address=@@DNS_LISTEN@@
+bind-interfaces
+
+# We are authoritative-ish for our zone only; never forward to the internet.
+no-resolv
+no-hosts
+domain-needed
+bogus-priv
+local=/@@TEST_ZONE@@/
+
+# The two project records: both names point at the EDGE (Mac 2), never at a backend.
+address=/@@APP_DOMAIN@@/@@EDGE_IP@@
+address=/@@API_DOMAIN@@/@@EDGE_IP@@
+
+# TTL handed to clients for the records above (Extension B).
+local-ttl=@@DNS_TTL@@
+
+# Log every query to stderr; our start script redirects to the log directory.
+log-queries
+log-facility=-
+pid-file=@@DNSMASQ_PID@@

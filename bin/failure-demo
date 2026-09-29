@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Reproducible failure demonstrations (Section 6.3). Always roll back!
+#   bin/failure-demo <wrong-resolver|wrong-dns-record|backend-a|backend-b|both-backends|wrong-port> <break|rollback|explain>
+set -uo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+. "$REPO/scripts/common.sh"; . "$REPO/scripts/checks.sh"; load_config; . "$REPO/scripts/roles.sh"
+sc="${1:-}"; act="${2:-explain}"
+usage() { sed -n '2,4p' "$0"; exit 2; }
+[ -n "$sc" ] || usage
+WRONG_IP=192.0.2.99   # TEST-NET-1: guaranteed unroutable
+
+my_dns() { [ "${ROLE:-}" = mitul ] && echo 127.0.0.1 || echo "$DNS_IP"; }
+say() { printf '%s\n' "$*"; }
+
+case "$sc:$act" in
+  wrong-resolver:explain) cat <<T
+WRONG DNS SERVER ON A CLIENT (run on a client Mac, e.g. Mitul or Vaibhav)
+ Break   : bin/failure-demo wrong-resolver break
+ Observe : dig @192.0.2.53 $APP_DOMAIN / curl $APP_URL -> "Could not resolve host"; but  ping $EDGE_IP  still works.
+ Why     : DNS (name->IP) and IP connectivity are independent layers.
+ Prove   : ping -c2 $EDGE_IP ; dscacheutil -q host -a name $APP_DOMAIN ; cat /etc/resolver/$TEST_ZONE
+ Rollback: bin/failure-demo wrong-resolver rollback
+T
+  ;;
+  wrong-resolver:break) resolver_install 192.0.2.53; say "BROKEN: resolver now points at unreachable 192.0.2.53. Rollback: bin/failure-demo wrong-resolver rollback";;
+  wrong-resolver:rollback) resolver_install "$(my_dns)"; say "Restored resolver -> $(my_dns)";;
+
+  wrong-dns-record:explain) cat <<T
+DNS RECORD POINTS TO A WRONG IP (run on Mitul)
+ Break   : bin/failure-demo wrong-dns-record break
+ Observe : dig $APP_DOMAIN succeeds and returns $WRONG_IP, but curl times out / cannot connect.
+ Why     : DNS is a directory, not a connection; it happily returns a wrong answer.
+ Prove   : dig +short @127.0.0.1 $APP_DOMAIN ; nc -vz -G2 $WRONG_IP $EDGE_PORT ; compare with $EDGE_IP
+ Rollback: bin/failure-demo wrong-dns-record rollback   (clients: wait TTL ${DNS_TTL}s or flush cache)
+T
+  ;;
+  wrong-dns-record:break) [ "${ROLE:-}" = mitul ] || die "Run on Mitul (DNS server)"; EDGE_IP="$WRONG_IP" dns_start; flush_dns_cache; say "BROKEN: $APP_DOMAIN -> $WRONG_IP";;
+  wrong-dns-record:rollback) [ "${ROLE:-}" = mitul ] || die "Run on Mitul"; dns_start; flush_dns_cache; say "Record restored -> $EDGE_IP";;
+
+  backend-a:explain|backend-b:explain|both-backends:explain) cat <<T
+BACKEND(S) STOPPED
+ Backend A only : Hardik runs  ./macs/mac3-hardik/stop.sh   (or: bin/failure-demo backend-a break, on Hardik's Mac)
+ Backend B only : Akshat runs  ./macs/mac4-akshat/stop.sh
+ Both           : both owners stop theirs.
+ Observe (one)  : ./bin/test-all load-balancing shows only the survivor's letter; requests keep succeeding (first request may take ${UPSTREAM_CONNECT_TIMEOUT} while nginx detects the failure).
+ Observe (both) : DNS, TCP and TLS still pass; curl $APP_URL/api/status -> 502 Bad Gateway from nginx.
+ Why     : nginx passive health (max_fails/fail_timeout + proxy_next_upstream) reroutes; with no healthy upstream the edge itself answers 502.
+ Prove   : ./bin/doctor ; curl -i $APP_URL/api/status ; tail $CN_LOG_DIR/nginx-error.log
+ Rollback: owners run start.sh (or: bin/failure-demo backend-a rollback)
+T
+  ;;
+  backend-a:break|backend-b:break|both-backends:break|backend-a:rollback|backend-b:rollback|both-backends:rollback)
+    verb="${act}"
+    case "$ROLE:$sc" in
+      hardik:backend-a|hardik:both-backends|akshat:backend-b|akshat:both-backends)
+        if [ "$verb" = break ]; then "$REPO/scripts/role.sh" "$ROLE" stop; else "$REPO/scripts/role.sh" "$ROLE" start; fi;;
+      *) say "This Mac ($ROLE) does not run that backend. Ask the owner (Hardik = A, Akshat = B) to run:"
+         say "    ./macs/mac3-hardik/$([ "$verb" = break ] && echo stop || echo start).sh   # Backend A"
+         say "    ./macs/mac4-akshat/$([ "$verb" = break ] && echo stop || echo start).sh   # Backend B";;
+    esac;;
+
+  wrong-port:explain|wrong-port:break) cat <<T
+WRONG DESTINATION PORT (safe: nothing is changed; run on any client)
+ Run     : curl -v --max-time 5 https://$APP_DOMAIN:9999/
+ Observe : name resolves to $EDGE_IP, then "Connection refused" (or timeout) on TCP :9999.
+ Why     : ports and IPs are separate identifiers; the host is reachable, nothing listens there.
+ Prove   : dig +short $APP_DOMAIN ; ping -c1 $EDGE_IP ; nc -vz $EDGE_IP 9999 ; nc -vz $EDGE_IP $EDGE_PORT
+ Rollback: none needed.
+T
+    [ "$act" = break ] && "$CURL" -v --max-time 5 "https://$APP_DOMAIN:9999/" 2>&1 | tail -6
+  ;;
+  wrong-port:rollback) say "Nothing to roll back.";;
+  *) usage;;
+esac
