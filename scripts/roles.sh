@@ -31,7 +31,12 @@ dns_start() {
   sudo "$bin" --keep-in-foreground --conf-file="$DNSMASQ_CONF" >> "$CN_LOG_DIR/dnsmasq.log" 2>&1 &
   disown || true
   local i; for i in $(seq 1 20); do
-    dig +short +time=1 +tries=1 -p "$DNS_PORT" @127.0.0.1 "$APP_DOMAIN" 2>/dev/null | grep -q . && { ok "dnsmasq answering: $APP_DOMAIN -> $EDGE_IP"; return 0; }
+    if dig +short +time=1 +tries=1 -p "$DNS_PORT" @127.0.0.1 "$APP_DOMAIN" 2>/dev/null | grep -q .; then
+      local pid; pid="$(pgrep -f "dnsmasq.*$DNSMASQ_CONF" | tail -1 || true)"
+      [ -n "$pid" ] && echo "$pid" > "$DNSMASQ_PID"
+      ok "dnsmasq answering: $APP_DOMAIN -> $EDGE_IP"
+      return 0
+    fi
     sleep 0.3
   done
   die "dnsmasq did not answer. See $CN_LOG_DIR/dnsmasq.log"
@@ -39,9 +44,16 @@ dns_start() {
 
 dns_stop() {
   if [ -f "$DNSMASQ_PID" ]; then stop_pidfile "$DNSMASQ_PID" sudo; fi
+  sudo_run pkill -f "dnsmasq.*$DNSMASQ_CONF" 2>/dev/null || true
+  rm -f "$DNSMASQ_PID"
 }
 
-dns_running() { [ -f "$DNSMASQ_PID" ] && kill -0 "$(cat "$DNSMASQ_PID" 2>/dev/null)" 2>/dev/null; }
+dns_running() {
+  if [ -f "$DNSMASQ_PID" ] && kill -0 "$(cat "$DNSMASQ_PID" 2>/dev/null)" 2>/dev/null; then
+    return 0
+  fi
+  pgrep -f "dnsmasq.*$DNSMASQ_CONF" >/dev/null 2>&1
+}
 
 # Scoped resolver: only *.<team>.test goes to our server; the rest of the
 # system DNS configuration is left untouched (no System Settings edits needed).

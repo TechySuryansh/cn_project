@@ -106,7 +106,10 @@ save_config_var() {  # save_config_var KEY VALUE
 prompt_var() {
   local var="$1" q="$2" def="${3:-}" cur ans
   cur="${!var:-}"
-  if [ -n "$cur" ]; then save_config_var "$var" "$cur"; return 0; fi
+  if [ -n "$cur" ] && [ "${CN_RECONFIGURE:-0}" != "1" ]; then
+    save_config_var "$var" "$cur"; return 0
+  fi
+  def="${cur:-$def}"
   if [ -n "${CN_NONINTERACTIVE:-}" ] || [ ! -t 0 ]; then
     [ -n "$def" ] || die "Missing required setting $var (set it in the environment or $CN_USER_ENV)"
     save_config_var "$var" "$def"; return 0

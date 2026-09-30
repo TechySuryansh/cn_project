@@ -11,6 +11,12 @@ load_config
 role="${1:?role}"; action="${2:?action}"; shift 2 || true
 ROLE="$role"
 
+for arg in "$@"; do
+  case "$arg" in
+    --reconfigure|-r) export CN_RECONFIGURE=1 ;;
+  esac
+done
+
 need_python() {
   python3 -c 'import sys; assert sys.version_info >= (3,8)' 2>/dev/null && { ok "python3 $(python3 -V 2>&1 | cut -d' ' -f2)"; return; }
   ensure_formula python@3.12 python3.12
@@ -37,7 +43,13 @@ mitul_setup() {
   banner "MAC 1 - MITUL - DNS + CONTROLLER + CLIENT"
   require_macos; common_prompts; require_role mitul; ensure_dirs
   show_net_info
-  prompt_var DNS_IP "This Mac's (DNS server) LAN IP" "$(detect_my_ip)"
+  local detected_ip; detected_ip="$(detect_my_ip)"
+  if [ -n "${DNS_IP:-}" ] && [ -n "$detected_ip" ] && [ "$DNS_IP" != "$detected_ip" ]; then
+    warn "Current interface IP ($detected_ip) differs from configured DNS_IP ($DNS_IP)."
+    prompt_var DNS_IP "Update DNS server LAN IP" "$detected_ip"
+  else
+    prompt_var DNS_IP "This Mac's (DNS server) LAN IP" "$detected_ip"
+  fi
   prompt_var EDGE_IP "Vaibhav's (edge) LAN IP"
   if [ "$NETWORK_MODE" = lan ]; then
     prompt_var HARDIK_LAN_IP "Hardik's (Backend A) LAN IP"
@@ -76,7 +88,13 @@ vaibhav_setup() {
   banner "MAC 2 - VAIBHAV - NGINX EDGE (TLS + PROXY + LB)"
   require_macos; common_prompts; require_role vaibhav; ensure_dirs
   show_net_info
-  prompt_var EDGE_IP "This Mac's (edge) LAN IP" "$(detect_my_ip)"
+  local detected_ip; detected_ip="$(detect_my_ip)"
+  if [ -n "${EDGE_IP:-}" ] && [ -n "$detected_ip" ] && [ "$EDGE_IP" != "$detected_ip" ]; then
+    warn "Current interface IP ($detected_ip) differs from configured EDGE_IP ($EDGE_IP)."
+    prompt_var EDGE_IP "Update edge LAN IP" "$detected_ip"
+  else
+    prompt_var EDGE_IP "This Mac's (edge) LAN IP" "$detected_ip"
+  fi
   prompt_var DNS_IP "Mitul's (DNS server) LAN IP"
   if [ "$NETWORK_MODE" = lan ]; then
     prompt_var HARDIK_LAN_IP "Hardik's (Backend A) LAN IP"
