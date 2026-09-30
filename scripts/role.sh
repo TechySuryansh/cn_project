@@ -43,15 +43,18 @@ mitul_setup() {
   banner "MAC 1 - MITUL - DNS + CONTROLLER + CLIENT"
   require_macos; common_prompts; require_role mitul; ensure_dirs
   show_net_info
-  local detected_ip; detected_ip="$(detect_my_ip)"
-  if [ -n "${DNS_IP:-}" ] && [ -n "$detected_ip" ] && [ "$DNS_IP" != "$detected_ip" ]; then
-    warn "Current interface IP ($detected_ip) differs from configured DNS_IP ($DNS_IP)."
-    prompt_var DNS_IP "Update DNS server LAN IP" "$detected_ip"
+  if [ "$NETWORK_MODE" = "tunnel" ]; then
+    save_config_var EDGE_IP "${TUNNEL_EDGE_IP:-10.250.0.2}"
+    prompt_var DNS_IP "This Mac's (DNS server) IP" "127.0.0.1"
   else
-    prompt_var DNS_IP "This Mac's (DNS server) LAN IP" "$detected_ip"
-  fi
-  prompt_var EDGE_IP "Vaibhav's (edge) LAN IP"
-  if [ "$NETWORK_MODE" = lan ]; then
+    local detected_ip; detected_ip="$(detect_my_ip)"
+    if [ -n "${DNS_IP:-}" ] && [ -n "$detected_ip" ] && [ "$DNS_IP" != "$detected_ip" ]; then
+      warn "Current interface IP ($detected_ip) differs from configured DNS_IP ($DNS_IP)."
+      prompt_var DNS_IP "Update DNS server LAN IP" "$detected_ip"
+    else
+      prompt_var DNS_IP "This Mac's (DNS server) LAN IP" "$detected_ip"
+    fi
+    prompt_var EDGE_IP "Vaibhav's (edge) LAN IP"
     prompt_var HARDIK_LAN_IP "Hardik's (Backend A) LAN IP"
     prompt_var AKSHAT_LAN_IP "Akshat's (Backend B) LAN IP"
   fi
@@ -88,26 +91,32 @@ vaibhav_setup() {
   banner "MAC 2 - VAIBHAV - NGINX EDGE (TLS + PROXY + LB)"
   require_macos; common_prompts; require_role vaibhav; ensure_dirs
   show_net_info
-  local detected_ip; detected_ip="$(detect_my_ip)"
-  if [ -n "${EDGE_IP:-}" ] && [ -n "$detected_ip" ] && [ "$EDGE_IP" != "$detected_ip" ]; then
-    warn "Current interface IP ($detected_ip) differs from configured EDGE_IP ($EDGE_IP)."
-    prompt_var EDGE_IP "Update edge LAN IP" "$detected_ip"
+  if [ "$NETWORK_MODE" = "tunnel" ]; then
+    save_config_var EDGE_IP "${TUNNEL_EDGE_IP:-10.250.0.2}"
+    ensure_formula cloudflared cloudflared
+    have_cmd warp-cli || [ -d "/Applications/Cloudflare WARP.app" ] || { ensure_brew; info "Installing Cloudflare WARP client"; "$BREW_BIN" install --cask cloudflare-warp; }
+    local cred="${CN_CREDENTIAL_FILE:-}"
+    [ -z "$cred" ] && [ ! -f "$CN_SECRETS_DIR/tunnel-token" ] && [ ! -f "$CN_SECRETS_DIR/tunnel-credentials.json" ] && [ -t 0 ] && \
+      read -r -p "Path to credentials-cn-edge.json Mitul gave you (or token): " cred
+    [ -n "$cred" ] && adopt_tunnel_secret "$cred"
+    tunnel_reachability_hint
   else
-    prompt_var EDGE_IP "This Mac's (edge) LAN IP" "$detected_ip"
-  fi
-  prompt_var DNS_IP "Mitul's (DNS server) LAN IP"
-  if [ "$NETWORK_MODE" = lan ]; then
+    local detected_ip; detected_ip="$(detect_my_ip)"
+    if [ -n "${EDGE_IP:-}" ] && [ -n "$detected_ip" ] && [ "$EDGE_IP" != "$detected_ip" ]; then
+      warn "Current interface IP ($detected_ip) differs from configured EDGE_IP ($EDGE_IP)."
+      prompt_var EDGE_IP "Update edge LAN IP" "$detected_ip"
+    else
+      prompt_var EDGE_IP "This Mac's (edge) LAN IP" "$detected_ip"
+    fi
+    prompt_var DNS_IP "Mitul's (DNS server) LAN IP"
     prompt_var HARDIK_LAN_IP "Hardik's (Backend A) LAN IP"
     prompt_var AKSHAT_LAN_IP "Akshat's (Backend B) LAN IP"
-  else
-    have_cmd warp-cli || [ -d "/Applications/Cloudflare WARP.app" ] || { ensure_brew; info "Installing Cloudflare WARP client"; "$BREW_BIN" install --cask cloudflare-warp; }
-    tunnel_reachability_hint
   fi
   load_config
   ensure_formula nginx nginx
   have_cmd dig || ensure_formula bind dig
   "$here/create-local-ca.sh"
-  resolver_install "$DNS_IP"      # Vaibhav is also a client of Mitul's DNS
+  [ "$NETWORK_MODE" = "lan" ] && resolver_install "$DNS_IP"
   edge_start
   echo
   for b in A B; do
@@ -190,7 +199,12 @@ case "$role" in
       teardown) backend_teardown;;
       *) die "unknown action $action";;
     esac;;
-  mitul|vaibhav)
+  vaibhav)
+    case "$action" in
+      setup) if [ "${1:-}" = "--credentials" ]; then CN_CREDENTIAL_FILE="${2:?file}"; shift 2 || true; fi; vaibhav_setup "$@";;
+      *) declare -F "$fn" >/dev/null || die "unknown action '$action' for $role"; "$fn" "$@";;
+    esac;;
+  mitul)
     declare -F "$fn" >/dev/null || die "unknown action '$action' for $role"
     "$fn" "$@";;
   *) die "unknown role '$role'";;

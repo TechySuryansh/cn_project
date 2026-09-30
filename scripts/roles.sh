@@ -112,6 +112,47 @@ nginx_cmd() { "$(brew_bin nginx)" -e "$CN_LOG_DIR/nginx-error.log" -p "$NGINX_PR
 
 edge_test_config() { edge_render; nginx_cmd -t; }
 
+edge_tunnel_start() {
+  local vip="${TUNNEL_EDGE_IP:-10.250.0.2}"
+  need_cmd cloudflared
+  if ifconfig lo0 | grep -q "inet $vip "; then ok "lo0 alias $vip present"; else
+    sudo_run ifconfig lo0 alias "$vip" 255.255.255.255
+    ok "Added lo0 alias $vip for edge"
+  fi
+  local token="$CN_SECRETS_DIR/tunnel-token" cred="$CN_SECRETS_DIR/tunnel-credentials.json"
+  local cf_edge_pid="$CN_RUN_DIR/cloudflared-edge.pid"
+  local cf_edge_log="$CN_LOG_DIR/cloudflared-edge.log"
+  if pid_alive "$cf_edge_pid"; then ok "edge cloudflared already running"; return; fi
+  : >> "$cf_edge_log"
+  if [ -f "$token" ]; then
+    TUNNEL_TOKEN="$(cat "$token")" nohup cloudflared tunnel --no-autoupdate run >> "$cf_edge_log" 2>&1 &
+  elif [ -f "$cred" ]; then
+    local id; id="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["TunnelID"])' "$cred")"
+    cat > "$CN_GEN_DIR/cloudflared-edge.yml" <<Y
+tunnel: $id
+credentials-file: $cred
+warp-routing:
+  enabled: true
+Y
+    nohup cloudflared tunnel --no-autoupdate --config "$CN_GEN_DIR/cloudflared-edge.yml" run >> "$cf_edge_log" 2>&1 &
+  else
+    warn "No edge tunnel credentials found yet ($cred). Vaibhav will only be reachable locally or via WARP."
+    return 0
+  fi
+  echo $! > "$cf_edge_pid"; disown || true
+  local i; for i in $(seq 1 30); do
+    grep -qE "Registered tunnel connection|Connection .* registered" "$cf_edge_log" 2>/dev/null && { ok "edge cloudflared connected"; return; }
+    sleep 1
+  done
+  warn "edge cloudflared has not reported a connection yet; check $cf_edge_log"
+}
+
+edge_tunnel_stop() {
+  local vip="${TUNNEL_EDGE_IP:-10.250.0.2}"
+  stop_pidfile "$CN_RUN_DIR/cloudflared-edge.pid"
+  ifconfig lo0 | grep -q "inet $vip " && sudo_run ifconfig lo0 -alias "$vip" || true
+}
+
 edge_start() {
   [ -x "$(brew_bin nginx)" ] || die "nginx not installed (run setup)"
   [ -f "$TLS_CERT" ] || "$REPO_ROOT/scripts/create-local-ca.sh"
@@ -124,9 +165,12 @@ edge_start() {
     ok "nginx started on :${EDGE_PORT}"
   fi
   wait_for_port 127.0.0.1 "$EDGE_PORT" 10 || die "nginx is not listening on :$EDGE_PORT (see $CN_LOG_DIR/nginx-error.log)"
+  [ "$NETWORK_MODE" = "tunnel" ] && edge_tunnel_start
+  return 0
 }
 
 edge_stop() {
+  [ "$NETWORK_MODE" = "tunnel" ] && edge_tunnel_stop
   if pid_alive "$NGINX_PID"; then nginx_cmd -s quit 2>/dev/null || stop_pidfile "$NGINX_PID"; fi
 }
 

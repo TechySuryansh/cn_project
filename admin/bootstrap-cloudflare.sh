@@ -42,17 +42,19 @@ make_tunnel() {  # name ip
     else warn "$cred not found (tunnel created elsewhere?). Use: cloudflared tunnel token $name > file"; fi
   fi
 }
+make_tunnel "${TUNNEL_EDGE_NAME:-cn-edge}" "${TUNNEL_EDGE_IP:-10.250.0.2}"
 make_tunnel "$TUNNEL_A_NAME" "$TUNNEL_A_IP"
 make_tunnel "$TUNNEL_B_NAME" "$TUNNEL_B_IP"
 
 cat <<MSG
 
 Done. Now:
- 1. Give Hardik  $OUT/credentials-${TUNNEL_A_NAME}.json   (AirDrop / password manager - NOT git, NOT chat history you can't delete)
-    Give Akshat  $OUT/credentials-${TUNNEL_B_NAME}.json
-    Each runs:  ./macs/mac3-hardik/setup.sh --credentials <file>   (Akshat: mac4-akshat)
+ 1. Credentials generated in $OUT:
+    - Give Vaibhav $OUT/credentials-${TUNNEL_EDGE_NAME:-cn-edge}.json  (runs Edge setup with --credentials)
+    - Give Hardik  $OUT/credentials-${TUNNEL_A_NAME}.json            (runs mac3-hardik with --credentials)
+    - Give Akshat  $OUT/credentials-${TUNNEL_B_NAME}.json            (runs mac4-akshat with --credentials)
  2. Dashboard (manual, one time): Zero Trust > Settings > WARP Client > Device settings >
     Split Tunnels: make sure 10.250.0.0/24 is NOT excluded (or use 'Include' mode with it).
- 3. Vaibhav installs Cloudflare WARP, signs in to your Zero Trust team, then runs his setup.
+ 3. Mitul and Vaibhav install Cloudflare WARP and sign in to your Zero Trust team.
 See docs/CLOUDFLARE_MODE.md.
 MSG

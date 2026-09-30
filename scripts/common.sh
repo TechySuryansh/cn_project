@@ -82,13 +82,14 @@ load_config() {
   API_DOMAIN="api.${TEAM}.test"
   TEST_ZONE="${TEAM}.test"
   if [ "$NETWORK_MODE" = "tunnel" ]; then
+    EDGE_IP="${EDGE_IP:-${TUNNEL_EDGE_IP:-10.250.0.2}}"
     BACKEND_A_HOST="$TUNNEL_A_IP"; BACKEND_B_HOST="$TUNNEL_B_IP"
   else
     BACKEND_A_HOST="$HARDIK_LAN_IP"; BACKEND_B_HOST="$AKSHAT_LAN_IP"
   fi
   APP_URL="https://${APP_DOMAIN}:${EDGE_PORT}"
   CURL="${CURL:-/usr/bin/curl}"; [ -x "$CURL" ] || CURL="$(command -v curl || true)"
-  export APP_DOMAIN API_DOMAIN TEST_ZONE BACKEND_A_HOST BACKEND_B_HOST APP_URL
+  export EDGE_IP APP_DOMAIN API_DOMAIN TEST_ZONE BACKEND_A_HOST BACKEND_B_HOST APP_URL
 }
 
 save_config_var() {  # save_config_var KEY VALUE
