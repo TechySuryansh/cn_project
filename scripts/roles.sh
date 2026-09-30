@@ -27,13 +27,15 @@ dns_start() {
   : >> "$CN_LOG_DIR/dnsmasq.log"
   sudo -v
   info "Starting dnsmasq on ${DNS_LISTEN}:${DNS_PORT}"
-  # shellcheck disable=SC2024  # intentional: the log file must stay owned by the user, not root
+  sudo_run rm -f "$DNSMASQ_PID" 2>/dev/null || true
   sudo "$bin" --keep-in-foreground --conf-file="$DNSMASQ_CONF" >> "$CN_LOG_DIR/dnsmasq.log" 2>&1 &
   disown || true
   local i; for i in $(seq 1 20); do
     if dig +short +time=1 +tries=1 -p "$DNS_PORT" @127.0.0.1 "$APP_DOMAIN" 2>/dev/null | grep -q .; then
       local pid; pid="$(pgrep -f "dnsmasq.*$DNSMASQ_CONF" | tail -1 || true)"
-      [ -n "$pid" ] && echo "$pid" > "$DNSMASQ_PID"
+      if [ -n "$pid" ] && [ ! -s "$DNSMASQ_PID" ]; then
+        echo "$pid" > "$DNSMASQ_PID" 2>/dev/null || true
+      fi
       ok "dnsmasq answering: $APP_DOMAIN -> $EDGE_IP"
       return 0
     fi
@@ -45,7 +47,7 @@ dns_start() {
 dns_stop() {
   if [ -f "$DNSMASQ_PID" ]; then stop_pidfile "$DNSMASQ_PID" sudo; fi
   sudo_run pkill -f "dnsmasq.*$DNSMASQ_CONF" 2>/dev/null || true
-  rm -f "$DNSMASQ_PID"
+  rm -f "$DNSMASQ_PID" 2>/dev/null || sudo_run rm -f "$DNSMASQ_PID" 2>/dev/null || true
 }
 
 dns_running() {
