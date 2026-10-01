@@ -4,10 +4,10 @@
 
 | Mac | Person | Role | IP (LAN) | Interface | MAC | Service / port |
 |---|---|---|---|---|---|---|
-| 1 | Mitul | DNS + client + controller | _fill_ | _en0_ | _fill_ | dnsmasq 53/udp,tcp |
-| 2 | Vaibhav | nginx edge | _fill_ | _en0_ | _fill_ | 8443/tcp (TLS) |
-| 3 | Hardik | Backend A | _fill_ | _en0_ | _fill_ | 3001/tcp |
-| 4 | Akshat | Backend B | _fill_ | _en0_ | _fill_ | 3002/tcp |
+| 1 | Suryansh | DNS + client + controller | 10.7.15.194 | en0 | 92:35:47:24:4b:4a | dnsmasq 53/udp,tcp |
+| 2 | Pranjal | nginx edge | _fill_ | _en0_ | _fill_ | 8443/tcp (TLS) |
+| 3 | Ajeesh | Backend A | _fill_ | _en0_ | _fill_ | 3001/tcp |
+| 4 | Sarvajeet | Backend B | _fill_ | _en0_ | _fill_ | 3002/tcp |
 
 Each Mac prints its row with `scripts/macos-network-info.sh`. Tunnel mode adds virtual IPs 10.250.0.3 (A) and 10.250.0.4 (B).
 

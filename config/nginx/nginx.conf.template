@@ -1,5 +1,5 @@
 # Generated from config/nginx/nginx.conf.template - do not edit the output.
-# Mac 2 (Vaibhav): TLS-terminating reverse proxy + round-robin load balancer.
+# Mac 2 (Pranjal): TLS-terminating reverse proxy + round-robin load balancer.
 # Network mode: @@NETWORK_MODE@@
 
 worker_processes 1;

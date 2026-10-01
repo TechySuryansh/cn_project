@@ -20,8 +20,8 @@ cacert=(); [ "$CN_TRUST_MODE" = cacert ] && cacert=(--cacert "$CN_CA_CERT_REPO")
   echo; openssl x509 -in "$CN_CA_CERT_REPO" -noout -subject -issuer -dates 2>&1; } > "$D/tls.txt"
 { echo "Sequence of X-Backend values: $(sample_backends 10)"; } > "$D/load-balancing.txt"
 { cache_headers; echo "conditional request status: $(cache_status_with_etag)"; } > "$D/cache.txt" 2>&1
-[ "$ROLE" = vaibhav ] && edge_test_config > "$D/nginx-t.txt" 2>&1 && cp "$NGINX_CONF" "$D/nginx.conf.generated"
-[ "$ROLE" = mitul ] && [ -f "$DNSMASQ_CONF" ] && cp "$DNSMASQ_CONF" "$D/dnsmasq.conf.generated"
+[ "$ROLE" = pranjal ] && edge_test_config > "$D/nginx-t.txt" 2>&1 && cp "$NGINX_CONF" "$D/nginx.conf.generated"
+[ "$ROLE" = suryansh ] && [ -f "$DNSMASQ_CONF" ] && cp "$DNSMASQ_CONF" "$D/dnsmasq.conf.generated"
 "$REPO/bin/status" > "$D/service-status.txt" 2>&1
 "$REPO/bin/doctor" > "$D/doctor.txt" 2>&1
 { lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null | grep -E ":(${EDGE_PORT}|${BACKEND_A_PORT}|${BACKEND_B_PORT}) "; lsof -nP -iUDP:"$DNS_PORT" 2>/dev/null; } > "$D/listening-ports.txt"

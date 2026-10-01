@@ -9,12 +9,12 @@ usage() { sed -n '2,4p' "$0"; exit 2; }
 [ -n "$sc" ] || usage
 WRONG_IP=192.0.2.99   # TEST-NET-1: guaranteed unroutable
 
-my_dns() { [ "${ROLE:-}" = mitul ] && echo 127.0.0.1 || echo "$DNS_IP"; }
+my_dns() { [ "${ROLE:-}" = suryansh ] && echo 127.0.0.1 || echo "$DNS_IP"; }
 say() { printf '%s\n' "$*"; }
 
 case "$sc:$act" in
   wrong-resolver:explain) cat <<T
-WRONG DNS SERVER ON A CLIENT (run on a client Mac, e.g. Mitul or Vaibhav)
+WRONG DNS SERVER ON A CLIENT (run on a client Mac, e.g. Suryansh or Pranjal)
  Break   : bin/failure-demo wrong-resolver break
  Observe : dig @192.0.2.53 $APP_DOMAIN / curl $APP_URL -> "Could not resolve host"; but  ping $EDGE_IP  still works.
  Why     : DNS (name->IP) and IP connectivity are independent layers.
@@ -26,7 +26,7 @@ T
   wrong-resolver:rollback) resolver_install "$(my_dns)"; say "Restored resolver -> $(my_dns)";;
 
   wrong-dns-record:explain) cat <<T
-DNS RECORD POINTS TO A WRONG IP (run on Mitul)
+DNS RECORD POINTS TO A WRONG IP (run on Suryansh)
  Break   : bin/failure-demo wrong-dns-record break
  Observe : dig $APP_DOMAIN succeeds and returns $WRONG_IP, but curl times out / cannot connect.
  Why     : DNS is a directory, not a connection; it happily returns a wrong answer.
@@ -34,13 +34,13 @@ DNS RECORD POINTS TO A WRONG IP (run on Mitul)
  Rollback: bin/failure-demo wrong-dns-record rollback   (clients: wait TTL ${DNS_TTL}s or flush cache)
 T
   ;;
-  wrong-dns-record:break) [ "${ROLE:-}" = mitul ] || die "Run on Mitul (DNS server)"; EDGE_IP="$WRONG_IP" dns_start; flush_dns_cache; say "BROKEN: $APP_DOMAIN -> $WRONG_IP";;
-  wrong-dns-record:rollback) [ "${ROLE:-}" = mitul ] || die "Run on Mitul"; dns_start; flush_dns_cache; say "Record restored -> $EDGE_IP";;
+  wrong-dns-record:break) [ "${ROLE:-}" = suryansh ] || die "Run on Suryansh (DNS server)"; EDGE_IP="$WRONG_IP" dns_start; flush_dns_cache; say "BROKEN: $APP_DOMAIN -> $WRONG_IP";;
+  wrong-dns-record:rollback) [ "${ROLE:-}" = suryansh ] || die "Run on Suryansh"; dns_start; flush_dns_cache; say "Record restored -> $EDGE_IP";;
 
   backend-a:explain|backend-b:explain|both-backends:explain) cat <<T
 BACKEND(S) STOPPED
- Backend A only : Hardik runs  ./macs/mac3-hardik/stop.sh   (or: bin/failure-demo backend-a break, on Hardik's Mac)
- Backend B only : Akshat runs  ./macs/mac4-akshat/stop.sh
+ Backend A only : Ajeesh runs  ./macs/mac3-ajeesh/stop.sh   (or: bin/failure-demo backend-a break, on Ajeesh's Mac)
+ Backend B only : Sarvajeet runs  ./macs/mac4-sarvajeet/stop.sh
  Both           : both owners stop theirs.
  Observe (one)  : ./bin/test-all load-balancing shows only the survivor's letter; requests keep succeeding (first request may take ${UPSTREAM_CONNECT_TIMEOUT} while nginx detects the failure).
  Observe (both) : DNS, TCP and TLS still pass; curl $APP_URL/api/status -> 502 Bad Gateway from nginx.
@@ -52,11 +52,11 @@ T
   backend-a:break|backend-b:break|both-backends:break|backend-a:rollback|backend-b:rollback|both-backends:rollback)
     verb="${act}"
     case "$ROLE:$sc" in
-      hardik:backend-a|hardik:both-backends|akshat:backend-b|akshat:both-backends)
+      ajeesh:backend-a|ajeesh:both-backends|sarvajeet:backend-b|sarvajeet:both-backends|sravjeet:backend-b|sravjeet:both-backends)
         if [ "$verb" = break ]; then "$REPO/scripts/role.sh" "$ROLE" stop; else "$REPO/scripts/role.sh" "$ROLE" start; fi;;
-      *) say "This Mac ($ROLE) does not run that backend. Ask the owner (Hardik = A, Akshat = B) to run:"
-         say "    ./macs/mac3-hardik/$([ "$verb" = break ] && echo stop || echo start).sh   # Backend A"
-         say "    ./macs/mac4-akshat/$([ "$verb" = break ] && echo stop || echo start).sh   # Backend B";;
+      *) say "This Mac ($ROLE) does not run that backend. Ask the owner (Ajeesh = A, Sarvajeet = B) to run:"
+         say "    ./macs/mac3-ajeesh/$([ "$verb" = break ] && echo stop || echo start).sh   # Backend A"
+         say "    ./macs/mac4-sarvajeet/$([ "$verb" = break ] && echo stop || echo start).sh   # Backend B";;
     esac;;
 
   wrong-port:explain|wrong-port:break) cat <<T

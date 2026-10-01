@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: role.sh <mitul|vaibhav|hardik|akshat> <setup|start|stop|status|teardown> [args]
+# Usage: role.sh <suryansh|pranjal|ajeesh|sarvajeet> <setup|start|stop|status|teardown> [args]
 # The macs/*/ scripts are thin wrappers around this file.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,10 +38,10 @@ show_net_info() {
   "$here/macos-network-info.sh" | sed 's/^/    /' || warn "could not read network info"
 }
 
-# --------------------------------------------------------------------- MITUL
-mitul_setup() {
-  banner "MAC 1 - MITUL - DNS + CONTROLLER + CLIENT"
-  require_macos; common_prompts; require_role mitul; ensure_dirs
+# ------------------------------------------------------------------- SURYANSH
+suryansh_setup() {
+  banner "MAC 1 - SURYANSH - DNS + CONTROLLER + CLIENT"
+  require_macos; common_prompts; require_role suryansh; ensure_dirs
   show_net_info
   if [ "$NETWORK_MODE" = "tunnel" ]; then
     save_config_var EDGE_IP "${TUNNEL_EDGE_IP:-10.250.0.2}"
@@ -54,9 +54,9 @@ mitul_setup() {
     else
       prompt_var DNS_IP "This Mac's (DNS server) LAN IP" "$detected_ip"
     fi
-    prompt_var EDGE_IP "Vaibhav's (edge) LAN IP"
-    prompt_var HARDIK_LAN_IP "Hardik's (Backend A) LAN IP"
-    prompt_var AKSHAT_LAN_IP "Akshat's (Backend B) LAN IP"
+    prompt_var EDGE_IP "Pranjal's (edge) LAN IP"
+    prompt_var AJEESH_LAN_IP "Ajeesh's (Backend A) LAN IP"
+    prompt_var SARVAJEET_LAN_IP "Sarvajeet's (Backend B) LAN IP"
   fi
   load_config
   ensure_formula dnsmasq dnsmasq
@@ -64,32 +64,32 @@ mitul_setup() {
   dns_start
   resolver_install 127.0.0.1
   if [ -f "$CN_CA_CERT_REPO" ]; then "$here/install-ca.sh" || warn "CA install skipped"
-  else warn "pki/ca.crt not found yet. After Vaibhav runs his setup and pushes it: git pull && scripts/install-ca.sh"; fi
+  else warn "pki/ca.crt not found yet. After Pranjal runs edge setup and pushes it: git pull && scripts/install-ca.sh"; fi
   echo; info "Quick checks"
   "$REPO_ROOT/tests/test_dns.sh" || true
-  if chk_edge_tcp; then "$REPO_ROOT/tests/test_tls.sh" || true; else warn "Edge $EDGE_IP:$EDGE_PORT not reachable yet (Vaibhav not ready?)"; fi
-  echo; mitul_status
+  if chk_edge_tcp; then "$REPO_ROOT/tests/test_tls.sh" || true; else warn "Edge $EDGE_IP:$EDGE_PORT not reachable yet (Pranjal not ready?)"; fi
+  echo; suryansh_status
   echo; log_paths_hint
   echo "Other Macs: run  scripts/configure-client-dns.sh   (points them at ${DNS_IP})"
 }
-mitul_start() { dns_start; resolver_install 127.0.0.1; }
-mitul_stop()  { dns_stop; ok "dnsmasq stopped"; }
-mitul_status() {
-  banner "MAC 1 MITUL - DNS / CLIENT"
+suryansh_start() { dns_start; resolver_install 127.0.0.1; }
+suryansh_stop()  { dns_stop; ok "dnsmasq stopped"; }
+suryansh_status() {
+  banner "MAC 1 SURYANSH - DNS / CLIENT"
   row "dnsmasq process" "$(mark dns_running)"
   row "DNS answers ${APP_DOMAIN}" "$(mark chk_dns_server)"
   row "client resolver -> edge IP" "$(mark chk_dns_client)"
   [ -f "$RESOLVER_FILE_DIR/$TEST_ZONE" ] && row "/etc/resolver/$TEST_ZONE" "present" || row "/etc/resolver/$TEST_ZONE" "MISSING"
 }
-mitul_teardown() {
+suryansh_teardown() {
   dns_stop; resolver_remove
   info "dnsmasq stopped; resolver removed. CA trust kept (remove: scripts/install-ca.sh --remove)"
 }
 
-# ------------------------------------------------------------------- VAIBHAV
-vaibhav_setup() {
-  banner "MAC 2 - VAIBHAV - NGINX EDGE (TLS + PROXY + LB)"
-  require_macos; common_prompts; require_role vaibhav; ensure_dirs
+# ------------------------------------------------------------------- PRANJAL
+pranjal_setup() {
+  banner "MAC 2 - PRANJAL - NGINX EDGE (TLS + PROXY + LB)"
+  require_macos; common_prompts; require_role pranjal; ensure_dirs
   show_net_info
   if [ "$NETWORK_MODE" = "tunnel" ]; then
     save_config_var EDGE_IP "${TUNNEL_EDGE_IP:-10.250.0.2}"
@@ -97,7 +97,7 @@ vaibhav_setup() {
     have_cmd warp-cli || [ -d "/Applications/Cloudflare WARP.app" ] || { ensure_brew; info "Installing Cloudflare WARP client"; "$BREW_BIN" install --cask cloudflare-warp; }
     local cred="${CN_CREDENTIAL_FILE:-}"
     [ -z "$cred" ] && [ ! -f "$CN_SECRETS_DIR/tunnel-token" ] && [ ! -f "$CN_SECRETS_DIR/tunnel-credentials.json" ] && [ -t 0 ] && \
-      read -r -p "Path to credentials-cn-edge.json Mitul gave you (or token): " cred
+      read -r -p "Path to credentials-cn-edge.json Suryansh gave you (or token): " cred
     [ -n "$cred" ] && adopt_tunnel_secret "$cred"
     tunnel_reachability_hint
   else
@@ -108,9 +108,9 @@ vaibhav_setup() {
     else
       prompt_var EDGE_IP "This Mac's (edge) LAN IP" "$detected_ip"
     fi
-    prompt_var DNS_IP "Mitul's (DNS server) LAN IP"
-    prompt_var HARDIK_LAN_IP "Hardik's (Backend A) LAN IP"
-    prompt_var AKSHAT_LAN_IP "Akshat's (Backend B) LAN IP"
+    prompt_var DNS_IP "Suryansh's (DNS server) LAN IP"
+    prompt_var AJEESH_LAN_IP "Ajeesh's (Backend A) LAN IP"
+    prompt_var SARVAJEET_LAN_IP "Sarvajeet's (Backend B) LAN IP"
   fi
   load_config
   ensure_formula nginx nginx
@@ -122,7 +122,7 @@ vaibhav_setup() {
   for b in A B; do
     if chk_backend_direct "$b"; then ok "Backend $b reachable from edge"; else warn "Backend $b NOT reachable yet from the edge (owner must run their setup${NETWORK_MODE:+; mode=$NETWORK_MODE})"; fi
   done
-  echo; vaibhav_status
+  echo; pranjal_status
   echo; log_paths_hint
   echo
   info "NEXT: commit and push pki/ca.crt so clients can trust it:  git add pki/ca.crt && git commit -m 'Add public CA cert' && git push"
@@ -131,16 +131,16 @@ vaibhav_setup() {
 tunnel_reachability_hint() {
   if ! port_open "$TUNNEL_A_IP" "$BACKEND_A_PORT" 3 || ! port_open "$TUNNEL_B_IP" "$BACKEND_B_PORT" 3; then
     warn "Private routes to $TUNNEL_A_IP / $TUNNEL_B_IP not reachable yet. Checklist (docs/CLOUDFLARE_MODE.md):"
-    echo "   1. Open Cloudflare WARP, log in to the team Mitul created (Zero Trust)."
+    echo "   1. Open Cloudflare WARP, log in to the team Suryansh created (Zero Trust)."
     echo "   2. Zero Trust > Settings > WARP Client > Split Tunnels must INCLUDE 10.250.0.0/24"
     echo "      (default 'Exclude' mode removes 10.0.0.0/8 from the tunnel)."
-    echo "   3. Hardik and Akshat must have run their setup (cloudflared connected)."
+    echo "   3. Ajeesh and Sarvajeet must have run their setup (cloudflared connected)."
   fi
 }
-vaibhav_start() { edge_start; }
-vaibhav_stop()  { edge_stop; ok "nginx stopped"; }
-vaibhav_status() {
-  banner "MAC 2 VAIBHAV - EDGE"
+pranjal_start() { edge_start; }
+pranjal_stop()  { edge_stop; ok "nginx stopped"; }
+pranjal_status() {
+  banner "MAC 2 PRANJAL - EDGE"
   row "nginx process" "$(mark edge_running)"
   row "TCP ${EDGE_PORT} listening" "$(mark port_open 127.0.0.1 "$EDGE_PORT" 2)"
   row "nginx config test" "$(mark edge_test_config)"
@@ -150,12 +150,12 @@ vaibhav_status() {
   [ "$NETWORK_MODE" = tunnel ] && row "Cloudflare route to backends" "$(mark chk_backend_direct A) / $(mark chk_backend_direct B)"
   return 0
 }
-vaibhav_teardown() { edge_stop; info "nginx stopped. Config lives in $CN_CONFIG_DIR (delete manually to purge keys)."; }
+pranjal_teardown() { edge_stop; info "nginx stopped. Config lives in $CN_CONFIG_DIR (delete manually to purge keys)."; }
 
-# --------------------------------------------------------- HARDIK / AKSHAT
+# ---------------------------------------------------- AJEESH / SARVAJEET
 backend_setup() {
   backend_vars
-  banner "MAC $([ "$ROLE" = hardik ] && echo 3 || echo 4) - $(echo "$ROLE" | tr a-z A-Z) - BACKEND $B_ID"
+  banner "MAC $([ "$ROLE" = ajeesh ] && echo 3 || echo 4) - $(echo "$ROLE" | tr a-z A-Z) - BACKEND $B_ID"
   require_macos; common_prompts; require_role "$ROLE"; ensure_dirs
   show_net_info
   need_python
@@ -163,7 +163,7 @@ backend_setup() {
     ensure_formula cloudflared cloudflared
     local cred="${CN_CREDENTIAL_FILE:-}"
     [ -z "$cred" ] && [ ! -f "$CN_SECRETS_DIR/tunnel-token" ] && [ ! -f "$CN_SECRETS_DIR/tunnel-credentials.json" ] && [ -t 0 ] && \
-      read -r -p "Path to the credential file Mitul gave you (token or credentials JSON): " cred
+      read -r -p "Path to the credential file Suryansh gave you (token or credentials JSON): " cred
     [ -n "$cred" ] && adopt_tunnel_secret "$cred"
   fi
   backend_start
@@ -173,7 +173,7 @@ backend_setup() {
 }
 backend_status() {
   backend_vars
-  banner "MAC $([ "$ROLE" = hardik ] && echo 3 || echo 4) $(echo "$ROLE" | tr a-z A-Z) - BACKEND $B_ID"
+  banner "MAC $([ "$ROLE" = ajeesh ] && echo 3 || echo 4) $(echo "$ROLE" | tr a-z A-Z) - BACKEND $B_ID"
   row "Backend process" "$(mark pid_alive "$B_PID")"
   row "Port $B_PORT (0.0.0.0)" "$(mark port_open 127.0.0.1 "$B_PORT" 2)"
   local h; h="$("$CURL" -s --max-time 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$B_PORT/health" 2>/dev/null || true)"
@@ -190,7 +190,7 @@ backend_teardown() { backend_stop || true; }
 # ------------------------------------------------------------------ dispatch
 fn="${role}_${action}"
 case "$role" in
-  hardik|akshat)
+  ajeesh|sarvajeet|sravjeet)
     case "$action" in
       setup) if [ "${1:-}" = "--credentials" ]; then CN_CREDENTIAL_FILE="${2:?file}"; fi; backend_setup;;
       start) backend_start; echo; backend_status;;
@@ -199,13 +199,13 @@ case "$role" in
       teardown) backend_teardown;;
       *) die "unknown action $action";;
     esac;;
-  vaibhav)
+  pranjal)
     case "$action" in
-      setup) if [ "${1:-}" = "--credentials" ]; then CN_CREDENTIAL_FILE="${2:?file}"; shift 2 || true; fi; vaibhav_setup "$@";;
+      setup) if [ "${1:-}" = "--credentials" ]; then CN_CREDENTIAL_FILE="${2:?file}"; shift 2 || true; fi; pranjal_setup "$@";;
       *) declare -F "$fn" >/dev/null || die "unknown action '$action' for $role"; "$fn" "$@";;
     esac;;
-  mitul)
+  suryansh)
     declare -F "$fn" >/dev/null || die "unknown action '$action' for $role"
     "$fn" "$@";;
-  *) die "unknown role '$role'";;
+  *) die "unknown role '$role' (valid roles: suryansh, pranjal, ajeesh, sarvajeet)";;
 esac

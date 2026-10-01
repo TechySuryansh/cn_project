@@ -14,4 +14,4 @@ Wireshark filters: `dns`, `tcp.flags.syn==1`, `tls.handshake.type==1` (ClientHel
 Ports to point out: DNS `ephemeral -> 53/UDP`; HTTPS `ephemeral -> 8443/TCP`; edge -> backend `ephemeral -> 3001|3002/TCP`.
 
 Failure demonstrations: [FAILURE_DEMOS.md](FAILURE_DEMOS.md). Demo order (Section 8 of the brief): topology -> ping -> `dig` -> HTTPS by name -> repeated curl (A/B) -> Wireshark -> `curl -I` + 304 -> stop Backend A -> Phase 2 items -> fault diagnosis (`./bin/doctor`) -> viva.
-Phase 2 hooks already present: `DNS_TTL` (Extension B), `proxy_next_upstream` failover (D), standby edge = run Vaibhav's setup on another Mac and change the DNS record (E).
+Phase 2 hooks already present: `DNS_TTL` (Extension B), `proxy_next_upstream` failover (D), standby edge = run Pranjal's setup on another Mac and change the DNS record (E).

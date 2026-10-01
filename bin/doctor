@@ -38,19 +38,19 @@ layer "DNS"             l2 "DNS is only a directory (name->IP); a wrong server o
   "dig -p $DNS_PORT @$DNS_IP $APP_DOMAIN ; cat /etc/resolver/$TEST_ZONE ; tail $CN_LOG_DIR/dnsmasq.log"
 layer "TCP EDGE"        l3 "TCP connects to IP:port; a reachable host can still refuse a port with nothing listening." \
   "nginx is not listening on $EDGE_IP:$EDGE_PORT, a firewall blocks it, or the wrong port is configured." \
-  "nc -vz $EDGE_IP $EDGE_PORT ; (on Vaibhav) lsof -iTCP:$EDGE_PORT -sTCP:LISTEN"
+  "nc -vz $EDGE_IP $EDGE_PORT ; (on Pranjal) lsof -iTCP:$EDGE_PORT -sTCP:LISTEN"
 layer "TLS"             l4 "TLS authenticates the server via a CA-signed certificate whose SAN must match the URL name." \
   "Certificate not trusted (CA not installed), name mismatch (SAN), expired, or nginx TLS config broken." \
   "scripts/install-ca.sh ; openssl s_client -connect $EDGE_IP:$EDGE_PORT -servername $APP_DOMAIN -CAfile pki/ca.crt </dev/null"
 layer "NGINX / EDGE"    l5 "The edge answers HTTP itself (/__edge/health) without needing any backend." \
   "nginx is up at TCP level but its HTTP handling is failing (bad config, wrong vhost/server_name)." \
-  "(on Vaibhav) ./bin/status ; tail $CN_LOG_DIR/nginx-error.log"
+  "(on Pranjal) ./bin/status ; tail $CN_LOG_DIR/nginx-error.log"
 layer "BACKEND A"       l6 "The edge proxies to Backend A over TCP; failure here isolates the backend, not DNS/TLS." \
-  "Backend A process or Hardik's Cloudflare connector / LAN reachability is unavailable." \
-  "(on Hardik) ./macs/mac3-hardik/status.sh ; (on Vaibhav) nc -vz $BACKEND_A_HOST $BACKEND_A_PORT"
+  "Backend A process or Ajeesh's Cloudflare connector / LAN reachability is unavailable." \
+  "(on Ajeesh) ./macs/mac3-ajeesh/status.sh ; (on Pranjal) nc -vz $BACKEND_A_HOST $BACKEND_A_PORT"
 layer "BACKEND B"       l7 "The edge proxies to Backend B over TCP; failure here isolates the backend, not DNS/TLS." \
-  "Backend B process or Akshat's Cloudflare connector / LAN reachability is unavailable." \
-  "(on Akshat) ./macs/mac4-akshat/status.sh ; (on Vaibhav) nc -vz $BACKEND_B_HOST $BACKEND_B_PORT"
+  "Backend B process or Sarvajeet's Cloudflare connector / LAN reachability is unavailable." \
+  "(on Sarvajeet) ./macs/mac4-sarvajeet/status.sh ; (on Pranjal) nc -vz $BACKEND_B_HOST $BACKEND_B_PORT"
 layer "CLOUDFLARE (WARP)" l8 "In tunnel mode the edge reaches $TUNNEL_A_IP/$TUNNEL_B_IP through an overlay, not the LAN." \
   "Cloudflare WARP not connected on the edge, or split-tunnel excludes 10.250.0.0/24." \
   "warp-cli status ; docs/CLOUDFLARE_MODE.md"

@@ -85,7 +85,8 @@ load_config() {
     EDGE_IP="${EDGE_IP:-${TUNNEL_EDGE_IP:-10.250.0.2}}"
     BACKEND_A_HOST="$TUNNEL_A_IP"; BACKEND_B_HOST="$TUNNEL_B_IP"
   else
-    BACKEND_A_HOST="$HARDIK_LAN_IP"; BACKEND_B_HOST="$AKSHAT_LAN_IP"
+    BACKEND_A_HOST="${AJEESH_LAN_IP:-${BACKEND_A_LAN_IP:-}}"
+    BACKEND_B_HOST="${SARVAJEET_LAN_IP:-${SRAVJEET_LAN_IP:-${BACKEND_B_LAN_IP:-}}}"
   fi
   APP_URL="https://${APP_DOMAIN}:${EDGE_PORT}"
   CURL="${CURL:-/usr/bin/curl}"; [ -x "$CURL" ] || CURL="$(command -v curl || true)"

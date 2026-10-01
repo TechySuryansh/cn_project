@@ -49,9 +49,10 @@
 **🎙️ What to Say:**
 > *"Hello everyone and welcome to our Computer Networks Phase 1 demonstration. We are Team **AEIN**, which stands for **Another Error In Network**.  
 > Our distributed architecture is deployed across physical Mac machines over a local area network:
-> - **Mitul (Mac 1)** is running the local DNS server via dnsmasq on port 53, the test controller, and Backend B on port 3002.
-> - **Hardik (Mac 2)** is hosting the TLS Edge Reverse Proxy using Nginx on port 8443, as well as Backend A on port 3001.
-> - Our teammates **Akshat** and **Vaibhav** are collaborating on backend development and edge routing configurations."*
+> - **Suryansh (Mac 1)** is running the local DNS server via dnsmasq on port 53, the test controller, and test client.
+> - **Pranjal (Mac 2)** is hosting the TLS Edge Reverse Proxy using Nginx on port 8443.
+> - **Ajeesh (Mac 3)** is running Backend A on port 3001.
+> - **Sarvajeet (Mac 4)** is running Backend B on port 3002."*
 
 ---
 
@@ -61,7 +62,7 @@
 ./scripts/macos-network-info.sh
 ```
 **🎙️ What to Say:**
-> *"First, here is our physical network addressing for Task A. We are on the Wi-Fi interface en0 with IP address `10.80.3.253` on a `/24` subnet with gateway `10.80.3.250`. Hardik's Mac on the same subnet is at `10.80.3.171`."*
+> *"First, here is our physical network addressing for Task A. We are on the Wi-Fi interface en0 with IP address `10.80.3.253` on a `/24` subnet with gateway `10.80.3.250`. Pranjal's Mac on the same subnet is at `10.80.3.171`."*
 
 ---
 
@@ -75,7 +76,7 @@
 > - dnsmasq is active and answering queries.
 > - Client resolver correctly maps the test domain to the Edge IP.
 > - The Edge proxy on Mac 2 is listening on port 8443 with valid TLS.
-> - Both Backend A on Hardik's machine and Backend B on my machine are healthy, and the application reports round-robin load balancing."*
+> - Both Backend A on Ajeesh's machine and Backend B on Sarvajeet's machine are healthy, and the application reports round-robin load balancing."*
 
 ---
 
@@ -95,7 +96,7 @@ dig @127.0.0.1 +noall +answer app.team1.test
 **🎙️ What to Say:**
 > *"Now let's examine the configuration.  
 > First, DNS resolution: Instead of hijacking the entire system's DNS settings, we use macOS's scoped resolver in `/etc/resolver/team1.test`. Only queries for the `.team1.test` domain are forwarded to our local DNS server at `127.0.0.1`.  
-> Verifying through `dscacheutil` and `dig`, `app.team1.test` resolves accurately to Hardik's Edge IP `10.80.3.171`."*
+> Verifying through `dscacheutil` and `dig`, `app.team1.test` resolves accurately to Pranjal's Edge IP `10.80.3.171`."*
 
 ---
 
@@ -115,7 +116,7 @@ curl -v https://app.team1.test:8443/__edge/health 2>&1 | grep -E "(ALPN|SSL conn
 ./tests/test_load_balancing.sh
 ```
 **🎙️ What to Say:**
-> *"Third, Load Balancing: Running our automated test suite demonstrates round-robin balancing between Backend A on Hardik's Mac and Backend B on my Mac. Responses alternate cleanly: B A B A B A, with each backend taking an equal share of the load."*
+> *"Third, Load Balancing: Running our automated test suite demonstrates round-robin balancing between Backend A on Ajeesh's Mac and Backend B on Sarvajeet's Mac. Responses alternate cleanly: B A B A B A, with each backend taking an equal share of the load."*
 
 ---
 
@@ -174,7 +175,7 @@ curl --connect-timeout 2 https://app.team1.test:8443/api/status
 #### [3:55 – 4:15] Scenario 3: One Backend is Stopped (Failover)
 **⌨️ Run Commands:**
 ```bash
-./macs/mac4-akshat/stop.sh
+./macs/mac4-sarvajeet/stop.sh
 ```
 ```bash
 curl -sS https://app.team1.test:8443/api/status && echo
@@ -183,11 +184,11 @@ curl -sS https://app.team1.test:8443/api/status && echo
 curl -sS https://app.team1.test:8443/api/status && echo
 ```
 ```bash
-./macs/mac4-akshat/start.sh
+./macs/mac4-sarvajeet/start.sh
 ```
 **🎙️ What to Say:**
 > *"Scenario 3: One backend is stopped.  
-> We simulate a crash by stopping Backend B. Now when we send requests to the edge, every request succeeds with 200 OK and is routed to Backend A on Hardik's machine.  
+> We simulate a crash by stopping Backend B. Now when we send requests to the edge, every request succeeds with 200 OK and is routed to Backend A on Ajeesh's machine.  
 > **Explanation:** Nginx's passive health checks and `proxy_next_upstream` directive detect the dead upstream and immediately fail over to the surviving backend with zero dropped user requests. We now restart Backend B."*
 
 ---
@@ -195,13 +196,13 @@ curl -sS https://app.team1.test:8443/api/status && echo
 #### [4:15 – 4:30] Scenario 4: Both Backends are Stopped
 **⌨️ Run Commands:**
 ```bash
-./macs/mac4-akshat/stop.sh
+./macs/mac4-sarvajeet/stop.sh
 ```
 ```bash
 curl -i https://app.team1.test:8443/api/status
 ```
 ```bash
-./macs/mac4-akshat/start.sh
+./macs/mac4-sarvajeet/start.sh
 ```
 **🎙️ What to Say:**
 > *"Scenario 4: Upstream backend failure (Both backends stopped).  
@@ -263,15 +264,15 @@ curl --connect-timeout 2 https://app.team1.test:8443/api/status
 ./bin/failure-demo wrong-dns-record rollback
 
 # 3. One Backend Stopped
-./macs/mac4-akshat/stop.sh
+./macs/mac4-sarvajeet/stop.sh
 curl -sS https://app.team1.test:8443/api/status && echo
 curl -sS https://app.team1.test:8443/api/status && echo
-./macs/mac4-akshat/start.sh
+./macs/mac4-sarvajeet/start.sh
 
 # 4. Both Backends / 502 Bad Gateway
-./macs/mac4-akshat/stop.sh
+./macs/mac4-sarvajeet/stop.sh
 curl -i https://app.team1.test:8443/api/status
-./macs/mac4-akshat/start.sh
+./macs/mac4-sarvajeet/start.sh
 
 # 5. Wrong Port
 curl -v --max-time 2 https://app.team1.test:9999/api/status 2>&1 | grep -E "(Trying|Failed|Connection refused)"

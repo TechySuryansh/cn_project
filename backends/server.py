@@ -5,7 +5,7 @@ The application is deliberately trivial - the network is the project.
 One implementation serves both Backend A and Backend B; identity comes from
 the environment:
 
-    BACKEND_ID=A|B  BACKEND_OWNER=Hardik  PORT=3001  BIND=0.0.0.0
+    BACKEND_ID=A|B  BACKEND_OWNER=Ajeesh  PORT=3001  BIND=0.0.0.0
 
 Endpoints
     GET|HEAD /               small HTML confirmation page

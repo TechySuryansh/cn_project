@@ -7,36 +7,36 @@ forwards the HTTP request - alternating - to Backend A or Backend B. Every step 
 
 | Mac | Person | Role | Ports |
 |---|---|---|---|
-| 1 | **Mitul** | Private DNS (dnsmasq) + controller + test client | 53/udp+tcp |
-| 2 | **Vaibhav** | nginx edge: TLS termination, reverse proxy, round-robin LB | 8443/tcp |
-| 3 | **Hardik** | Backend A (Python stdlib REST) | 3001/tcp |
-| 4 | **Akshat** | Backend B (same code, different config) | 3002/tcp |
+| 1 | **Suryansh** | Private DNS (dnsmasq) + controller + test client | 53/udp+tcp |
+| 2 | **Pranjal** | nginx edge: TLS termination, reverse proxy, round-robin LB | 8443/tcp |
+| 3 | **Ajeesh** | Backend A (Python stdlib REST) | 3001/tcp |
+| 4 | **Sarvajeet** | Backend B (same code, different config) | 3002/tcp |
 
 ## Two network modes (`NETWORK_MODE`)
 
 * **`lan`** - the architecture from the university brief. All four Macs share one private Wi-Fi/LAN and talk directly. **This is the mode to submit and demo unless faculty approves otherwise.**
-* **`tunnel`** - for when Hardik/Akshat are physically remote. Only the *nginx -> backend* hop changes: it travels over a Cloudflare Zero Trust private network. Mitul <-> Vaibhav (DNS, TCP, TLS, HTTP) stay on the local LAN, so those layers remain observable.
+* **`tunnel`** - for when Ajeesh/Sarvajeet are physically remote. Only the *nginx -> backend* hop changes: it travels over a Cloudflare Zero Trust private network. Suryansh <-> Pranjal (DNS, TCP, TLS, HTTP) stay on the local LAN, so those layers remain observable.
 
 > Tunnel mode is **not** equivalent to a four-Mac LAN (the brief requires a shared LAN, LAN inventory and pairwise pings, and a locally-run system). It exists for remote development/demo. Nothing in the application, nginx or DNS code changes between modes - only the upstream addresses.
 
 ```mermaid
 flowchart LR
   subgraph LAN["LAN MODE (matches the brief)"]
-    C1["Mac 1 Mitul<br/>client"] -->|"DNS 53/udp"| D1["Mac 1 Mitul<br/>dnsmasq"]
-    C1 -->|"TCP+TLS+HTTP :8443"| E1["Mac 2 Vaibhav<br/>nginx"]
-    E1 -->|"HTTP :3001 (LAN)"| BA1["Mac 3 Hardik<br/>Backend A"]
-    E1 -->|"HTTP :3002 (LAN)"| BB1["Mac 4 Akshat<br/>Backend B"]
+    C1["Mac 1 Suryansh<br/>client"] -->|"DNS 53/udp"| D1["Mac 1 Suryansh<br/>dnsmasq"]
+    C1 -->|"TCP+TLS+HTTP :8443"| E1["Mac 2 Pranjal<br/>nginx"]
+    E1 -->|"HTTP :3001 (LAN)"| BA1["Mac 3 Ajeesh<br/>Backend A"]
+    E1 -->|"HTTP :3002 (LAN)"| BB1["Mac 4 Sarvajeet<br/>Backend B"]
   end
 ```
 
 ```mermaid
 flowchart LR
   subgraph TUN["TUNNEL MODE (remote backends)"]
-    C2["Mac 1 Mitul<br/>dnsmasq + client"] -->|"DNS, then TCP+TLS+HTTP :8443 (local LAN)"| E2["Mac 2 Vaibhav<br/>nginx + Cloudflare WARP"]
+    C2["Mac 1 Suryansh<br/>dnsmasq + client"] -->|"DNS, then TCP+TLS+HTTP :8443 (local LAN)"| E2["Mac 2 Pranjal<br/>nginx + Cloudflare WARP"]
     E2 -->|"10.250.0.3:3001 via WARP"| CF(("Cloudflare<br/>Zero Trust"))
     E2 -->|"10.250.0.4:3002 via WARP"| CF
-    CF -->|"outbound-only tunnel A"| BA2["Mac 3 Hardik<br/>cloudflared + Backend A"]
-    CF -->|"outbound-only tunnel B"| BB2["Mac 4 Akshat<br/>cloudflared + Backend B"]
+    CF -->|"outbound-only tunnel A"| BA2["Mac 3 Ajeesh<br/>cloudflared + Backend A"]
+    CF -->|"outbound-only tunnel B"| BB2["Mac 4 Sarvajeet<br/>cloudflared + Backend B"]
   end
 ```
 
@@ -44,14 +44,14 @@ More diagrams: [docs/diagrams.md](docs/diagrams.md). Request walk-through: [docs
 
 ## Quick start - one command per Mac
 
-Everyone: `git clone <repo> && cd <repo>`. Run **in this order** (Vaibhav creates the CA others need):
+Everyone: `git clone <repo> && cd <repo>`. Run **in this order** (Pranjal creates the CA others need):
 
 | Order | Who | Command |
 |---|---|---|
-| 1 | Hardik | `./macs/mac3-hardik/setup.sh` |
-| 1 | Akshat | `./macs/mac4-akshat/setup.sh` |
-| 2 | Vaibhav | `./macs/mac2-vaibhav/setup.sh` then `git add pki/ca.crt && git commit && git push` |
-| 3 | Mitul | `git pull && ./macs/mac1-mitul/setup.sh` |
+| 1 | Ajeesh | `./macs/mac3-ajeesh/setup.sh` |
+| 1 | Sarvajeet | `./macs/mac4-sarvajeet/setup.sh` |
+| 2 | Pranjal | `./macs/mac2-pranjal/setup.sh` then `git add pki/ca.crt && git commit && git push` |
+| 3 | Suryansh | `git pull && ./macs/mac1-suryansh/setup.sh` |
 | 4 | any other client | `git pull && scripts/configure-client-dns.sh` |
 
 Setup scripts ask once for non-secret values (team name, mode, LAN IPs) and remember them in
@@ -78,7 +78,7 @@ config/                 project.example.env (all constants), dnsmasq + nginx tem
 scripts/                common.sh, roles.sh, role.sh, checks.sh, CA/DNS/capture helpers
 macs/mac{1..4}-*/       setup|start|stop|status.sh + README per machine
 bin/                    operator commands       tests/   per-layer tests
-admin/                  one-time Cloudflare bootstrap (Mitul only)
+admin/                  one-time Cloudflare bootstrap (Suryansh only)
 docs/                   architecture, flow, viva, failures, troubleshooting
 pki/ca.crt              PUBLIC CA certificate (safe to commit)
 evidence/               screenshots / pcaps / collected outputs

@@ -1,5 +1,5 @@
 # Generated from config/dns/dnsmasq.conf.template - do not edit the output.
-# Mac 1 (Mitul) private DNS for the .test zone (Task B).
+# Mac 1 (Suryansh) private DNS for the .test zone (Task B).
 
 port=@@DNS_PORT@@
 listen-address=@@DNS_LISTEN@@

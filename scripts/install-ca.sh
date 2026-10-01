@@ -17,7 +17,7 @@ if [ "${1:-}" = "--remove" ]; then
 fi
 
 crt="${1:-$CN_CA_CERT_REPO}"
-[ -f "$crt" ] || die "CA certificate not found: $crt (run: git pull; Vaibhav must run his setup first)"
+[ -f "$crt" ] || die "CA certificate not found: $crt (run: git pull; Pranjal must run edge setup first)"
 grep -q "PRIVATE KEY" "$crt" && die "Refusing: $crt contains a private key"
 
 target_fp="$(openssl x509 -in "$crt" -noout -fingerprint -sha1 2>/dev/null | cut -d= -f2 || true)"

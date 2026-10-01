@@ -1,6 +1,6 @@
-# Mac 2 - Vaibhav - nginx edge: TLS, reverse proxy, load balancer
+# Mac 2 - Pranjal - nginx edge: TLS, reverse proxy, load balancer
 
-**Setup (once, idempotent):** `./macs/mac2-vaibhav/setup.sh`   |   **Start:** `./macs/mac2-vaibhav/start.sh` (or `./bin/start`)   |   **Stop:** `./macs/mac2-vaibhav/stop.sh`   |   **Status:** `./macs/mac2-vaibhav/status.sh` (or `./bin/status`)
+**Setup (once, idempotent):** `./macs/mac2-pranjal/setup.sh`   |   **Start:** `./macs/mac2-pranjal/start.sh` (or `./bin/start`)   |   **Stop:** `./macs/mac2-pranjal/stop.sh`   |   **Status:** `./macs/mac2-pranjal/status.sh` (or `./bin/status`)
 
 **Software installed:** Homebrew, nginx, local CA + server certificate (private keys stay in `~/.config/cn-phase1/tls`); tunnel mode: Cloudflare WARP
 **Ports:** 8443/tcp (TLS)
