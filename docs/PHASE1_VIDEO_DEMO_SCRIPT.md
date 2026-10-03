@@ -1,157 +1,138 @@
 # Video Presentation Script: 5-Minute Phase 1 Demonstration
-**Team Name:** AEIN (*Another Error In Network*)  
-**Recommended Video Filename:** `CN_Phase1_[Section]_AEIN_LAN.mp4` (e.g., `CN_Phase1_S1_AEIN_LAN.mp4`)  
-**Maximum Duration:** 5:00 minutes (Target: 4:40 to stay comfortably within limits)  
+
+**Team Name:** nexa  
+**Submission Type:** Type 1 — 4 physical macOS laptops on the same LAN  
+**GitHub Repo:** `https://github.com/TechySuryansh/cn_project`  
+**Video File Name:** `CN_Phase1_[Section]_nexa_Type1.mp4` (e.g., `CN_Phase1_CSE1_nexa_Type1.mp4`)  
+**Maximum Duration:** 5:00 minutes (Target: ~4:35 for safe margin)  
 **Maximum File Size:** 500 MB (1080p MP4 recommended)  
-**Submission Requirement:** Google Drive Link set to *"Anyone with the link can view"* (test in Incognito).
+**Submission:** Google Drive link set to *"Anyone with the link can view"* (test in Incognito).
 
 ---
 
-## ⏱️ Master Timeline Overview
+## ⏱️ Video Structure (5-Minute Hard Cap)
 
-| Timecode | Segment | Purpose / Focus |
+| Time | Section | Focus |
 |---|---|---|
-| **0:00 – 0:45** | **Part 1: Team & Architecture Intro** | Team AEIN intro, roles, IPs, LAN topology |
-| **0:45 – 1:45** | **Part 1: Setup Flow & Master Status** | Network addressing (`macos-network-info.sh`), `./bin/status` all green |
-| **1:45 – 3:15** | **Part 2: Configuration Deep-Dive** | Scoped DNS, TLS 1.3 / HTTP/2, Load Balancing, HTTP Caching |
-| **3:15 – 4:45** | **Part 3: Section 5 Failure Demos (D3)** | All 5 Failure Scenarios (DNS server, DNS record, 1 backend down, both down, wrong port) |
-| **4:45 – 5:00** | **Conclusion & Outro** | Final summary & sign-off |
+| **0:00 – 2:00 (2 min)** | **Part 1: Team Intro & Setup Flow** | Team intro, 4-Mac roles, LAN addressing (Task A), `./bin/status` showing all green |
+| **2:00 – 4:00 (2 min)** | **Part 2: How Configuration is Working** | Scoped DNS (`/etc/resolver`), TLS 1.3 / HTTP/2, Round-Robin Load Balancing, HTTP Caching / 304 |
+| **4:00 – 5:00 (1 min)** | **Part 3: Section 5 Failure Demos (D3)** | L3 vs L7 separation (DNS record failure) + High-Availability Backend Failover (Nginx rerouting) |
 
 ---
 
-## 🛠️ Pre-Recording Checklist (Do this 1 minute BEFORE recording)
-1. **Cache Sudo Credentials:**
-   Run this in your terminal so no password prompt interrupts your recording:
-   ```bash
-   sudo -v
-   ```
-2. **Terminal Window Setup:**
-   - Font size: `16pt` or `18pt` (easy to read in 1080p video).
-   - Clear the terminal screen:
-   ```bash
-   clear
-   ```
-3. **Verify Everything is Active:**
-   ```bash
-   ./bin/status
-   ```
-   Ensure all checks return `OK` or `PASS`.
+## 🛠️ Pre-Recording Checklist (Run 1 minute before recording)
+
+Run this once in your terminal before hitting Record:
+```bash
+sudo -v
+clear
+```
+*(Caches your admin password so no prompt interrupts your screen recording).*
 
 ---
 
-# 🎬 Complete Spoken Script & Terminal Commands
+# 🎬 Complete Teleprompter Script & Commands
 
 ---
 
-### PART 1: TEAM INTRO & SETUP FLOW (0:00 – 1:45)
+### PART 1: TEAM INTRO & SETUP FLOW (0:00 – 2:00)
 
-#### [0:00 – 0:45] Team & Architecture Introduction
-**🎙️ What to Say:**
-> *"Hello everyone and welcome to our Computer Networks Phase 1 demonstration. We are Team **AEIN**, which stands for **Another Error In Network**.  
-> Our distributed architecture is deployed across physical Mac machines over a local area network:
-> - **Suryansh (Mac 1)** is running the local DNS server via dnsmasq on port 53, the test controller, and test client.
-> - **Pranjal (Mac 2)** is hosting the TLS Edge Reverse Proxy using Nginx on port 8443.
-> - **Ajeesh (Mac 3)** is running Backend A on port 3001.
-> - **Sarvajeet (Mac 4)** is running Backend B on port 3002."*
+#### [0:00 – 0:50] Team & Architecture Introduction
+**🎙️ Speak:**
+> *"Hello everyone, welcome to our Computer Networks Phase 1 demonstration. We are Team **nexa**.  
+> Our project is deployed using **Submission Type 1: four physical macOS laptops connected directly on the same local area network**.  
+> Here is how our architecture is distributed across our team:
+> - **Suryansh (Mac 1)** runs the local DNS server via dnsmasq on port 53 and acts as our test client.
+> - **Pranjal (Mac 2)** hosts the Edge Reverse Proxy and Load Balancer using Nginx on port 8443 with TLS termination.
+> - **Ajeesh (Mac 3)** runs Backend A on port 3001.
+> - **Sarvajeet (Mac 4)** runs Backend B on port 3002."*
 
 ---
 
-#### [0:45 – 1:15] Network Addressing (Task A)
+#### [0:50 – 1:25] Network Addressing (Task A)
 **⌨️ Run Command:**
 ```bash
 ./scripts/macos-network-info.sh
 ```
-**🎙️ What to Say:**
-> *"First, here is our physical network addressing for Task A. We are on the Wi-Fi interface en0 with IP address `10.80.3.253` on a `/24` subnet with gateway `10.80.3.250`. Pranjal's Mac on the same subnet is at `10.80.3.171`."*
+**🎙️ Speak:**
+> *"First, here is our physical network addressing for Task A.  
+> We are on Wi-Fi interface en0 with IP address `10.245.104.85` on a `/24` subnet with gateway `10.245.104.251`.  
+> On the exact same LAN:
+> - Pranjal's Edge is at `10.245.104.169`
+> - Ajeesh's Backend A is at `10.245.104.235`
+> - Sarvajeet's Backend B is at `10.245.104.126`."*
 
 ---
 
-#### [1:15 – 1:45] System Master Status & Setup Flow
+#### [1:25 – 2:00] Setup Flow & Cluster Master Status
 **⌨️ Run Command:**
 ```bash
 ./bin/status
 ```
-**🎙️ What to Say:**
-> *"Next, we run `./bin/status` to show the active state of our entire cluster. As you can see:
-> - dnsmasq is active and answering queries.
-> - Client resolver correctly maps the test domain to the Edge IP.
-> - The Edge proxy on Mac 2 is listening on port 8443 with valid TLS.
-> - Both Backend A on Ajeesh's machine and Backend B on Sarvajeet's machine are healthy, and the application reports round-robin load balancing."*
+**🎙️ Speak:**
+> *"To start our services, each teammate runs a single, idempotent setup script from their respective folder.  
+> Running `./bin/status` on our controller provides an end-to-end audit of the entire cluster:
+> - Our local dnsmasq service is active and correctly answering queries.
+> - Mac 2's Edge proxy is listening on port 8443 with valid TLS.
+> - Both Backend A and Backend B are answering health checks.
+> - And live requests are actively load balanced."*
 
 ---
 
-### PART 2: HOW CONFIGURATION IS WORKING (1:45 – 3:15)
+### PART 2: HOW CONFIGURATION IS WORKING (2:00 – 4:00)
 
-#### [1:45 – 2:10] 1. Scoped DNS Resolution
+#### [2:00 – 2:35] 1. Scoped DNS Resolution
 **⌨️ Run Commands:**
 ```bash
 cat /etc/resolver/team1.test
 ```
 ```bash
-dscacheutil -q host -a name app.team1.test
-```
-```bash
 dig @127.0.0.1 +noall +answer app.team1.test
 ```
-**🎙️ What to Say:**
-> *"Now let's examine the configuration.  
-> First, DNS resolution: Instead of hijacking the entire system's DNS settings, we use macOS's scoped resolver in `/etc/resolver/team1.test`. Only queries for the `.team1.test` domain are forwarded to our local DNS server at `127.0.0.1`.  
-> Verifying through `dscacheutil` and `dig`, `app.team1.test` resolves accurately to Pranjal's Edge IP `10.80.3.171`."*
+**🎙️ Speak:**
+> *"Now let's examine how each layer works.  
+> First, DNS resolution: Instead of altering the client's global DNS, we use macOS's scoped resolver in `/etc/resolver/team1.test`. Only queries for our domain are sent to our local DNS server at `127.0.0.1`.  
+> As confirmed by `dig`, `app.team1.test` resolves cleanly to Pranjal's Edge IP `10.245.104.169`."*
 
 ---
 
-#### [2:10 – 2:35] 2. TLS 1.3 & HTTP/2 Validation
+#### [2:35 – 3:05] 2. TLS 1.3 & HTTP/2 Security
 **⌨️ Run Command:**
 ```bash
 curl -v https://app.team1.test:8443/__edge/health 2>&1 | grep -E "(ALPN|SSL connection|HTTP/2)"
 ```
-**🎙️ What to Say:**
-> *"Second, TLS and Transport security: When connecting to our edge gateway over port 8443, curl completes the handshake using TLS 1.3 with zero `-k` or insecure flags because our private Root CA is installed and trusted in the macOS System Keychain. ALPN successfully negotiates HTTP/2."*
+**🎙️ Speak:**
+> *"Second, Transport Layer Security:  
+> When connecting over HTTPS on port 8443, curl negotiates **TLS 1.3** and **HTTP/2** with zero warnings and without any `-k` insecure flag.  
+> This is because our private Root CA certificate is installed and trusted in the macOS System Keychain."*
 
 ---
 
-#### [2:35 – 2:55] 3. Load Balancing Across Backends
+#### [3:05 – 3:35] 3. Round-Robin Load Balancing
 **⌨️ Run Command:**
 ```bash
 ./tests/test_load_balancing.sh
 ```
-**🎙️ What to Say:**
-> *"Third, Load Balancing: Running our automated test suite demonstrates round-robin balancing between Backend A on Ajeesh's Mac and Backend B on Sarvajeet's Mac. Responses alternate cleanly: B A B A B A, with each backend taking an equal share of the load."*
+**🎙️ Speak:**
+> *"Third, Load Balancing across our physical backends:  
+> Running our test suite sends requests to the application endpoint. Nginx distributes them evenly in round-robin fashion between Backend A on Ajeesh's Mac and Backend B on Sarvajeet's Mac, alternating: B A B A B A."*
 
 ---
 
-#### [2:55 – 3:15] 4. HTTP Caching & Conditional Requests
+#### [3:35 – 4:00] 4. HTTP Caching & Conditional Requests
 **⌨️ Run Command:**
 ```bash
 ./tests/test_cache.sh
 ```
-**🎙️ What to Say:**
-> *"Fourth, HTTP Caching: Testing our static endpoint confirms RFC 9111 compliance. Nginx emits a `Cache-Control: max-age=60` header along with an ETag. When the client sends an `If-None-Match` request, the edge proxy responds with `304 Not Modified`, saving network bandwidth."*
+**🎙️ Speak:**
+> *"Fourth, HTTP Caching according to RFC 9111:  
+> Our backends emit a `Cache-Control: max-age=60` freshness lifetime and a matching ETag. When the client sends an `If-None-Match` request, the server responds with `304 Not Modified`, verifying conditional validation and bandwidth optimization."*
 
 ---
 
-### PART 3: SECTION 5 FAILURE DEMONSTRATIONS (3:15 – 4:45)
+### PART 3: SECTION 5 FAILURE DEMONSTRATIONS (4:00 – 5:00)
 
-> *Here we reproduce the 5 exact failure scenarios from the Section 5 evaluation table, explaining root cause, network layer, and demonstrating recovery.*
-
----
-
-#### [3:15 – 3:35] Scenario 1: Wrong DNS Server Configured on Client
-**⌨️ Run Commands:**
-```bash
-dig @192.0.2.53 +time=1 +tries=1 app.team1.test
-```
-```bash
-ping -c 2 10.80.3.171
-```
-**🎙️ What to Say:**
-> *"Scenario 1: Wrong DNS server configured on the client.  
-> If the client queries an invalid DNS IP like `192.0.2.53`, the query times out with no server reached. However, running a direct ping to the Edge IP `10.80.3.171` succeeds with 0% packet loss.  
-> **Explanation:** This demonstrates the separation between the Application Layer (DNS name resolution) and Network Layer (L3 IP routing). Network connectivity is intact, but name resolution failed."*
-
----
-
-#### [3:35 – 3:55] Scenario 2: DNS Record Points to Wrong IP Address
+#### [4:00 – 4:30] Failure Demo 1: DNS Record vs IP Connectivity (L3 vs L7)
 **⌨️ Run Commands:**
 ```bash
 ./bin/failure-demo wrong-dns-record break
@@ -165,15 +146,18 @@ curl --connect-timeout 2 https://app.team1.test:8443/api/status
 ```bash
 ./bin/failure-demo wrong-dns-record rollback
 ```
-**🎙️ What to Say:**
-> *"Scenario 2: DNS record points to a wrong IP.  
-> We inject an unroutable IP `192.0.2.99` into dnsmasq. When we query `dig`, DNS happily answers with `192.0.2.99`. But when we run curl, the connection times out.  
-> **Explanation:** DNS is purely a directory service, not a connectivity validator. It returns the registered record, but the TCP SYN packet fails at the Transport Layer because the destination IP is unroutable. We now rollback the record."*
+**🎙️ Speak:**
+> *"In Section 5, we demonstrate layer separation during failure.  
+> First, we point the DNS record to an unroutable IP `192.0.2.99`. `dig` returns the address, but curl immediately fails with a timeout.  
+> **Key concept:** DNS is purely a directory service, not a connectivity check. Name resolution succeeded, but TCP connection failed at Layer 4. We roll back the change."*
 
 ---
 
-#### [3:55 – 4:15] Scenario 3: One Backend is Stopped (Failover)
+#### [4:30 – 4:55] Failure Demo 2: Backend Failure & Passive Failover
 **⌨️ Run Commands:**
+```bash
+curl -sS https://app.team1.test:8443/api/status && echo
+```
 ```bash
 ./macs/mac4-sarvajeet/stop.sh
 ```
@@ -181,99 +165,51 @@ curl --connect-timeout 2 https://app.team1.test:8443/api/status
 curl -sS https://app.team1.test:8443/api/status && echo
 ```
 ```bash
-curl -sS https://app.team1.test:8443/api/status && echo
-```
-```bash
 ./macs/mac4-sarvajeet/start.sh
 ```
-**🎙️ What to Say:**
-> *"Scenario 3: One backend is stopped.  
-> We simulate a crash by stopping Backend B. Now when we send requests to the edge, every request succeeds with 200 OK and is routed to Backend A on Ajeesh's machine.  
-> **Explanation:** Nginx's passive health checks and `proxy_next_upstream` directive detect the dead upstream and immediately fail over to the surviving backend with zero dropped user requests. We now restart Backend B."*
+**🎙️ Speak:**
+> *"Second, Backend Failure:  
+> When both backends are up, requests balance across A and B. When we stop Backend B, the next request still returns `200 OK`, routed automatically to Backend A.  
+> **Key concept:** Nginx's passive health checks detect the unresponsive port and failover instantly using `proxy_next_upstream`, ensuring high availability. We restart Backend B."*
 
 ---
 
-#### [4:15 – 4:30] Scenario 4: Both Backends are Stopped
-**⌨️ Run Commands:**
-```bash
-./macs/mac4-sarvajeet/stop.sh
-```
-```bash
-curl -i https://app.team1.test:8443/api/status
-```
-```bash
-./macs/mac4-sarvajeet/start.sh
-```
-**🎙️ What to Say:**
-> *"Scenario 4: Upstream backend failure (Both backends stopped).  
-> If upstreams are unavailable, when the client requests the API, the edge proxy responds with `HTTP/2 502 Bad Gateway`.  
-> **Explanation:** DNS resolution, TCP connection, and TLS 1.3 handshake all succeed at the Edge Gateway, but because there are no available upstream servers, the proxy itself generates the 502 error. We restore Backend B."*
+#### [4:55 – 5:00] Conclusion
+**🎙️ Speak:**
+> *"This concludes the Phase 1 demonstration for Team **nexa**. Thank you!"*
 
 ---
 
-#### [4:30 – 4:45] Scenario 5: Wrong Destination Port on Client
-**⌨️ Run Command:**
-```bash
-curl -v --max-time 2 https://app.team1.test:9999/api/status 2>&1 | grep -E "(Trying|Failed|Connection refused)"
-```
-**🎙️ What to Say:**
-> *"Scenario 5: Wrong destination port on the client.  
-> When the client attempts to connect to port 9999 instead of 8443, the domain resolves correctly to `10.80.3.171`, but the OS immediately returns `Connection refused`.  
-> **Explanation:** This highlights the distinction between Network Layer host addressing (IP) and Transport Layer process addressing (Port). The destination host is alive, but no listening socket exists on port 9999, so the OS sends a TCP RST packet."*
+## 📋 Quick Copy-Paste Cheatsheet for Recording
 
----
-
-### CONCLUSION & OUTRO (4:45 – 5:00)
-
-**🎙️ What to Say:**
-> *"To summarize: We have demonstrated DNS resolution, TLS 1.3 security, reverse proxy load balancing, HTTP caching, and analyzed network behavior across 5 distinct failure modes.  
-> This concludes the Phase 1 presentation for Team **AEIN (Another Error In Network)**. Thank you!"*
-
----
-
-## 📋 Quick Copy-Paste Cheatsheet for Video Recording
-
-Keep these exact commands ready on your terminal:
+Keep this single file or text buffer open on half of your screen:
 
 ```bash
-# === PRE-RECORDING ===
+# === 0. PREP ===
 sudo -v
 clear
 
-# === PART 1: INTRO & SETUP (0:00 - 1:45) ===
+# === PART 1: INTRO & SETUP (0:00 - 2:00) ===
 ./scripts/macos-network-info.sh
 ./bin/status
 
-# === PART 2: CONFIGURATION (1:45 - 3:15) ===
+# === PART 2: CONFIGURATION (2:00 - 4:00) ===
 cat /etc/resolver/team1.test
-dscacheutil -q host -a name app.team1.test
 dig @127.0.0.1 +noall +answer app.team1.test
 curl -v https://app.team1.test:8443/__edge/health 2>&1 | grep -E "(ALPN|SSL connection|HTTP/2)"
 ./tests/test_load_balancing.sh
 ./tests/test_cache.sh
 
-# === PART 3: FAILURE DEMONSTRATIONS (3:15 - 4:45) ===
-# 1. Wrong DNS Server
-dig @192.0.2.53 +time=1 +tries=1 app.team1.test
-ping -c 2 10.80.3.171
-
-# 2. Wrong DNS Record
+# === PART 3: FAILURE DEMOS (4:00 - 5:00) ===
+# 1. DNS Failure
 ./bin/failure-demo wrong-dns-record break
 dig @127.0.0.1 +short app.team1.test
 curl --connect-timeout 2 https://app.team1.test:8443/api/status
 ./bin/failure-demo wrong-dns-record rollback
 
-# 3. One Backend Stopped
+# 2. Backend Failover
+curl -sS https://app.team1.test:8443/api/status && echo
 ./macs/mac4-sarvajeet/stop.sh
 curl -sS https://app.team1.test:8443/api/status && echo
-curl -sS https://app.team1.test:8443/api/status && echo
 ./macs/mac4-sarvajeet/start.sh
-
-# 4. Both Backends / 502 Bad Gateway
-./macs/mac4-sarvajeet/stop.sh
-curl -i https://app.team1.test:8443/api/status
-./macs/mac4-sarvajeet/start.sh
-
-# 5. Wrong Port
-curl -v --max-time 2 https://app.team1.test:9999/api/status 2>&1 | grep -E "(Trying|Failed|Connection refused)"
 ```
