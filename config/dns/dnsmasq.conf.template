@@ -3,6 +3,7 @@
 
 port=@@DNS_PORT@@
 listen-address=@@DNS_LISTEN@@
+interface=en0
 bind-interfaces
 
 # We are authoritative-ish for our zone only; never forward to the internet.
